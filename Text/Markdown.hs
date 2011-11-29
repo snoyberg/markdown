@@ -19,7 +19,7 @@ import Data.Enumerator
     , sequence
     )
 import Data.Enumerator.List (fold)
-import Data.Monoid (mappend, mempty, mconcat)
+import Data.Monoid (Monoid (mappend, mempty, mconcat))
 import Data.Functor.Identity (runIdentity)
 import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
@@ -29,6 +29,7 @@ import Data.Attoparsec.Text
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import Control.Monad (when)
+import Text.HTML.SanitizeXSS (sanitizeBalance)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -54,24 +55,42 @@ markdownEnum :: Monad m
 markdownEnum = sequence . iterParser . parser
 
 nonEmptyLines :: Parser [Html]
-nonEmptyLines =
+nonEmptyLines = map line <$> nonEmptyLinesText
+
+nonEmptyLinesText :: Parser [Text]
+nonEmptyLinesText =
     go id
   where
-    go :: ([Html] -> [Html]) -> Parser [Html]
+    go :: ([Text] -> [Text]) -> Parser [Text]
     go front = do
         l <- takeWhile (/= '\n')
         optional $ skip (== '\n')
-        if T.null l then return (front []) else go $ front . (line l:)
+        if T.null l then return (front []) else go $ front . (l:)
+
+(<>) :: Monoid m => m -> m -> m
+(<>) = mappend
 
 parser :: MarkdownSettings -> Parser Html
 parser ms =
-    para
+    html
+    <|> para
   where
+    html = do
+        c <- char '<'
+        ls' <- nonEmptyLinesText
+        let ls =
+                case ls' of
+                    a:b -> T.cons c a:b
+                    [] -> [T.singleton c]
+        let t = T.intercalate "\n" ls
+        let t' = if msXssProtect ms then sanitizeBalance t else t
+        return $ preEscapedText t'
+
     para = do
         ls <- nonEmptyLines
         when (null ls) $ fail "Missing lines"
         return $ H.p $ foldr1
-            (\a b -> a `mappend` preEscapedText "\n" `mappend` b) ls
+            (\a b -> a <> preEscapedText "\n" <> b) ls
 
 line :: Text -> Html
 line = either error mconcat . parseOnly (many phrase)
