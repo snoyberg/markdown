@@ -99,6 +99,7 @@ phrase :: Parser Html
 phrase =
     boldU <|> italicU <|> underscore <|>
     bold <|> italic <|> asterisk <|>
+    code <|> backtick <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -109,4 +110,7 @@ phrase =
     italicU = try $ H.i <$> (char '_' *> phrase <* char '_')
     underscore = toHtml <$> takeWhile1 (== '_')
 
-    normal = toHtml <$> takeWhile1 (notInClass "*_")
+    code = try $ H.code <$> (char '`' *> phrase <* char '`')
+    backtick = toHtml <$> takeWhile1 (== '`')
+
+    normal = toHtml <$> takeWhile1 (notInClass "*_`")

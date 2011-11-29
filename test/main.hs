@@ -68,3 +68,6 @@ main = hspecX $ do
         let close2 = "<div>foo\nbar\nbaz\n\nparagraph"
         it "autoclose 2"
             $ check "<div>foo\nbar\nbaz</div><p>paragraph</p>" close2
+    describe "inline code" $ do
+        it "simple"
+            $ check "<p>foo <code>bar</code> baz</p>" "foo `bar` baz"
