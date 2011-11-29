@@ -26,6 +26,7 @@ Library
                      , enumerator             >= 0.4
                      , text
                      , data-default           >= 0.3
+                     , xss-sanitize
 
 test-suite test
     hs-source-dirs: test
