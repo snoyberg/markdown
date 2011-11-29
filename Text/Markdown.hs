@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Text.Markdown
     ( MarkdownSettings
     , msXssProtect
@@ -7,9 +8,10 @@ module Text.Markdown
 
 import Prelude hiding (sequence, takeWhile)
 import Data.Default (Default (..))
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Text.Blaze (Html, toHtml)
+import Text.Blaze (Html, toHtml, preEscapedText)
 import Data.Enumerator
     ( Iteratee, Enumeratee
     , ($$), (=$)
@@ -17,12 +19,14 @@ import Data.Enumerator
     , sequence
     )
 import Data.Enumerator.List (fold)
-import Data.Monoid (mappend, mempty)
+import Data.Monoid (mappend, mempty, mconcat)
 import Data.Functor.Identity (runIdentity)
 import Data.Attoparsec.Enumerator (iterParser)
-import Data.Attoparsec.Text (Parser, takeWhile)
-import Control.Applicative ((<$>))
+import Data.Attoparsec.Text
+    (Parser, takeWhile, string, skip, char)
+import Control.Applicative ((<$>), (<|>), optional)
 import qualified Text.Blaze.Html5 as H
+import Control.Monad (when)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -39,16 +43,31 @@ markdown ms tl =
 
 markdownIter :: Monad m
              => MarkdownSettings
-             -> Iteratee T.Text m Html
+             -> Iteratee Text m Html
 markdownIter ms = markdownEnum ms =$ fold mappend mempty
 
 markdownEnum :: Monad m
              => MarkdownSettings
-             -> Enumeratee T.Text Html m a
+             -> Enumeratee Text Html m a
 markdownEnum = sequence . iterParser . parser
+
+nonEmptyLines :: Parser [Text]
+nonEmptyLines =
+    go id
+  where
+    go :: ([Text] -> [Text]) -> Parser [Text]
+    go front = do
+        l <- takeWhile (/= '\n')
+        optional $ skip (== '\n')
+        if T.null l then return (front []) else go $ front . (l:)
 
 parser :: MarkdownSettings -> Parser Html
 parser ms =
     para
   where
-    para = H.p . toHtml <$> takeWhile (const True)
+    para = do
+        ls <- nonEmptyLines
+        when (null ls) $ fail "Missing lines"
+        return $ H.p $ foldr1
+            (\a b -> a `mappend` preEscapedText "\n" `mappend` b)
+            (map toHtml ls)

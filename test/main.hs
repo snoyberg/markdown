@@ -11,4 +11,6 @@ check html md = html @=? renderHtml (markdown def md)
 
 main :: IO ()
 main = hspecX $ describe "markdown" $ do
-    it "handles simple paragraphs" $ check "<p>Hello World!</p>" "Hello World!"
+    it "simple paragraphs" $ check "<p>Hello World!</p>" "Hello World!"
+    it "multiline paragraphs" $ check "<p>Hello\nWorld!</p>" "Hello\nWorld!"
+    it "two paragraphs" $ check "<p>Hello</p><p>World!</p>" "Hello\n\nWorld!"
