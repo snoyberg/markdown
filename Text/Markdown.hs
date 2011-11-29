@@ -24,7 +24,7 @@ import Data.Functor.Identity (runIdentity)
 import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
-    , takeWhile1
+    , takeWhile1, notInClass
     )
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
@@ -97,8 +97,16 @@ line = either error mconcat . parseOnly (many phrase)
 
 phrase :: Parser Html
 phrase =
-    italic <|> asterisk <|> normal
+    boldU <|> italicU <|> underscore <|>
+    bold <|> italic <|> asterisk <|>
+    normal
   where
+    bold = try $ H.b <$> (string "**" *> phrase <* string "**")
     italic = try $ H.i <$> (char '*' *> phrase <* char '*')
     asterisk = toHtml <$> takeWhile1 (== '*')
-    normal = toHtml <$> takeWhile1 (/= '*')
+
+    boldU = try $ H.b <$> (string "__" *> phrase <* string "__")
+    italicU = try $ H.i <$> (char '_' *> phrase <* char '_')
+    underscore = toHtml <$> takeWhile1 (== '_')
+
+    normal = toHtml <$> takeWhile1 (notInClass "*_")

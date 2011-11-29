@@ -30,6 +30,27 @@ main = hspecX $ do
             $ check "<p><i>foo</i> *</p>" "*foo* *"
         it "two"
             $ check "<p><i>foo</i> <i>bar</i></p>" "*foo* *bar*"
+    describe "italics under" $ do
+        it "simple"
+            $ check "<p><i>foo</i></p>" "_foo_"
+        it "hanging"
+            $ check "<p><i>foo</i> _</p>" "_foo_ _"
+        it "two"
+            $ check "<p><i>foo</i> <i>bar</i></p>" "_foo_ _bar_"
+    describe "bold" $ do
+        it "simple"
+            $ check "<p><b>foo</b></p>" "**foo**"
+        it "hanging"
+            $ check "<p><b>foo</b> **</p>" "**foo** **"
+        it "two"
+            $ check "<p><b>foo</b> <b>bar</b></p>" "**foo** **bar**"
+    describe "bold under" $ do
+        it "simple"
+            $ check "<p><b>foo</b></p>" "__foo__"
+        it "hanging"
+            $ check "<p><b>foo</b> __</p>" "__foo__ __"
+        it "two"
+            $ check "<p><b>foo</b> <b>bar</b></p>" "__foo__ __bar__"
     describe "html" $ do
         it "simple"
             $ check "<div>Hello</div>" "<div>Hello</div>"
