@@ -23,8 +23,10 @@ import Data.Monoid (mappend, mempty, mconcat)
 import Data.Functor.Identity (runIdentity)
 import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
-    (Parser, takeWhile, string, skip, char)
-import Control.Applicative ((<$>), (<|>), optional)
+    ( Parser, takeWhile, string, skip, char, parseOnly, try
+    , takeWhile1
+    )
+import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import Control.Monad (when)
 
@@ -51,15 +53,15 @@ markdownEnum :: Monad m
              -> Enumeratee Text Html m a
 markdownEnum = sequence . iterParser . parser
 
-nonEmptyLines :: Parser [Text]
+nonEmptyLines :: Parser [Html]
 nonEmptyLines =
     go id
   where
-    go :: ([Text] -> [Text]) -> Parser [Text]
+    go :: ([Html] -> [Html]) -> Parser [Html]
     go front = do
         l <- takeWhile (/= '\n')
         optional $ skip (== '\n')
-        if T.null l then return (front []) else go $ front . (l:)
+        if T.null l then return (front []) else go $ front . (line l:)
 
 parser :: MarkdownSettings -> Parser Html
 parser ms =
@@ -69,5 +71,15 @@ parser ms =
         ls <- nonEmptyLines
         when (null ls) $ fail "Missing lines"
         return $ H.p $ foldr1
-            (\a b -> a `mappend` preEscapedText "\n" `mappend` b)
-            (map toHtml ls)
+            (\a b -> a `mappend` preEscapedText "\n" `mappend` b) ls
+
+line :: Text -> Html
+line = either error mconcat . parseOnly (many phrase)
+
+phrase :: Parser Html
+phrase =
+    italic <|> asterisk <|> normal
+  where
+    italic = try $ H.i <$> (char '*' *> phrase <* char '*')
+    asterisk = toHtml <$> takeWhile1 (== '*')
+    normal = toHtml <$> takeWhile1 (/= '*')
