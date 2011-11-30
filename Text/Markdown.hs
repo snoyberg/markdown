@@ -33,6 +33,7 @@ import qualified Text.Blaze.Html5 as H
 import Control.Monad (when, unless)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Data.List (intersperse)
+import Data.Char (isSpace)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -79,6 +80,7 @@ parser ms =
     html
     <|> hashheads <|> underheads
     <|> codeblock
+    <|> blockquote
     <|> para
   where
     html = do
@@ -112,7 +114,7 @@ parser ms =
                     3 -> H.h4
                     4 -> H.h5
                     _ -> H.h6
-        return $ h $ line l
+        return $ h $ line $ T.dropWhileEnd isSpace $ T.dropWhileEnd (== '#') l
 
     underheads = try $ do
         x <- takeWhile (/= '\n')
@@ -127,8 +129,15 @@ parser ms =
     codeblock = H.pre . mconcat . map toHtml . intersperse "\n"
             <$> many1 indentedLine
 
+    blockquote = H.blockquote . markdown ms . TL.fromChunks . intersperse "\n"
+             <$> many1 blockedLine
+
 indentedLine :: Parser Text
 indentedLine = string "    " *> takeWhile (/= '\n') <* (optional $ char '\n')
+
+blockedLine :: Parser Text
+blockedLine = (string ">\n" *> return "") <|>
+              (string "> " *> takeWhile (/= '\n') <* (optional $ char '\n'))
 
 line :: Text -> Html
 line = either error mconcat . parseOnly (many phrase)

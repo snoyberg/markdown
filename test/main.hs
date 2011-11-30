@@ -96,7 +96,16 @@ main = hspecX $ do
             $ check
                 "<h1>foo</h1><h2>bar</h2><h3>baz</h3>"
                 "# foo\n\n##     bar\n\n###baz"
+        it "trailing hashes"
+            $ check
+                "<h1>foo</h1>"
+                "# foo    ####"
         it "underline"
             $ check
                 "<h1>foo</h1><h2>bar</h2>"
                 "foo\n=============\n\nbar\n----------------\n"
+    describe "blockquotes" $ do
+        it "simple"
+            $ check
+                "<blockquote><p>foo</p><pre>bar</pre></blockquote>"
+                "> foo\n>\n>     bar"
