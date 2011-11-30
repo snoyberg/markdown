@@ -25,6 +25,7 @@ import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
+    , skipSpace
     )
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
@@ -73,6 +74,7 @@ nonEmptyLinesText =
 parser :: MarkdownSettings -> Parser Html
 parser ms =
     html
+    <|> hashheads
     <|> para
   where
     html = do
@@ -88,9 +90,25 @@ parser ms =
 
     para = do
         ls <- nonEmptyLines
-        when (null ls) $ fail "Missing lines"
-        return $ H.p $ foldr1
-            (\a b -> a <> preEscapedText "\n" <> b) ls
+        return $ if (null ls)
+            then mempty
+            else H.p $ foldr1
+                    (\a b -> a <> preEscapedText "\n" <> b) ls
+
+    hashheads = do
+        c <- char '#'
+        x <- takeWhile (== '#')
+        skipSpace
+        l <- takeWhile (/= '\n')
+        let h =
+                case T.length x of
+                    0 -> H.h1
+                    1 -> H.h2
+                    2 -> H.h3
+                    3 -> H.h4
+                    4 -> H.h5
+                    _ -> H.h6
+        return $ h $ line l
 
 line :: Text -> Html
 line = either error mconcat . parseOnly (many phrase)

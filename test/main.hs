@@ -76,3 +76,22 @@ main = hspecX $ do
             $ check
                 "<p>*foo_bar<i>baz</i>\\`bin</p>"
                 "\\*foo\\_bar_baz_\\\\\\`bin"
+    describe "bullets" $ do
+        it "simple"
+            $ check
+                "<ul><li>foo</li><li>bar</li><li>baz</li></ul>"
+                "* foo\n* bar\n* baz\n"
+    describe "numbers" $ do
+        it "simple"
+            $ check
+                "<ol><li>foo</li><li>bar</li><li>baz</li></ol>"
+                "5. foo\n2. bar\n1. baz\n"
+    describe "headings" $ do
+        it "hashes"
+            $ check
+                "<h1>foo</h1><h2>bar</h2><h3>baz</h3>"
+                "# foo\n\n##     bar\n\n###baz"
+        it "underline"
+            $ check
+                "<h1>foo</h1><h2>bar</h2>"
+                "foo\n=============\n\nbar\n----------------\n"
