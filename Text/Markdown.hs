@@ -25,7 +25,7 @@ import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
-    , skipSpace, anyChar, endOfInput
+    , skipSpace, anyChar, endOfInput, decimal
     )
 import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
@@ -80,10 +80,11 @@ parser :: MarkdownSettings -> Parser Html
 parser ms =
     html
     <|> rules
-    -- <|> rules
     <|> hashheads <|> underheads
     <|> codeblock
     <|> blockquote
+    <|> bullets
+    <|> numbers
     <|> para
   where
     html = do
@@ -151,6 +152,27 @@ parser ms =
 
     blockquote = H.blockquote . markdown ms . TL.fromChunks . intersperse "\n"
              <$> many1 blockedLine
+
+    bullets = H.ul . mconcat <$> many1 (bullet ms)
+    numbers = H.ol . mconcat <$> many1 (number ms)
+
+string' s = string s *> return ()
+
+bulletStart = string' "* " <|> string' "- " <|> string' "+ "
+
+bullet _ms = do
+    bulletStart
+    content <- itemContent
+    return $ H.li $ toHtml content
+
+numberStart = try $ decimal *> satisfy (inClass ".)") *> char' ' '
+
+number _ms = do
+    numberStart
+    content <- itemContent
+    return $ H.li $ toHtml content
+
+itemContent = takeWhile (/= '\n') <* (optional $ char' '\n')
 
 indentedLine :: Parser Text
 indentedLine = string "    " *> takeWhile (/= '\n') <* (optional $ char '\n')
