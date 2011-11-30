@@ -29,7 +29,7 @@ import Data.Attoparsec.Text
     )
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 
 data MarkdownSettings = MarkdownSettings
@@ -43,7 +43,8 @@ instance Default MarkdownSettings where
 
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
-    runIdentity $ run_ $ enumList 8 (TL.toChunks tl) $$ markdownIter ms
+    runIdentity $ run_ $ enumList 8 (TL.toChunks $ TL.filter (/= '\r') tl)
+                      $$ markdownIter ms
 
 markdownIter :: Monad m
              => MarkdownSettings
@@ -74,7 +75,7 @@ nonEmptyLinesText =
 parser :: MarkdownSettings -> Parser Html
 parser ms =
     html
-    <|> hashheads
+    <|> hashheads <|> underheads
     <|> para
   where
     html = do
@@ -109,6 +110,16 @@ parser ms =
                     4 -> H.h5
                     _ -> H.h6
         return $ h $ line l
+
+    underheads = try $ do
+        x <- takeWhile (/= '\n')
+        _ <- char '\n'
+        y <- satisfy $ inClass "=-"
+        ys <- takeWhile (== y)
+        unless (T.length ys >= 2) $ fail "Not enough unders"
+        _ <- char '\n'
+        let l = line x
+        return $ (if y == '=' then H.h1 else H.h2) l
 
 line :: Text -> Html
 line = either error mconcat . parseOnly (many phrase)
