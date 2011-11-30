@@ -3,8 +3,9 @@ import Test.Hspec.Monadic
 import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown
-import Data.Text.Lazy (Text)
+import Data.Text.Lazy (Text, unpack, snoc)
 import Text.Blaze.Renderer.Text (renderHtml)
+import Control.Monad (forM_)
 
 check :: Text -> Text -> Assertion
 check html md = html @=? renderHtml (markdown def md)
@@ -120,3 +121,13 @@ main = hspecX $ do
         it "escaped title" $ check
             "<p><a href=\"foo)\" title=\"baz&quot;\">bar</a></p>"
             "[bar](foo\\) \"baz\\\"\")"
+    describe "rules" $ do
+        let options = concatMap (\t -> [t, snoc t '\n'])
+                [ "* * *"
+                , "***"
+                , "*****"
+                , "- - -"
+                , "---------------------------------------"
+                , "----------------------------------"
+                ]
+        forM_ options $ \o -> it (unpack o) $ check "<hr>" o

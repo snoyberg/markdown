@@ -25,7 +25,7 @@ import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
-    , skipSpace, anyChar
+    , skipSpace, anyChar, endOfInput
     )
 import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
@@ -79,6 +79,8 @@ nonEmptyLinesText =
 parser :: MarkdownSettings -> Parser Html
 parser ms =
     html
+    <|> rules
+    -- <|> rules
     <|> hashheads <|> underheads
     <|> codeblock
     <|> blockquote
@@ -94,6 +96,23 @@ parser ms =
         let t = T.intercalate "\n" ls
         let t' = if msXssProtect ms then sanitizeBalance t else t
         return $ preEscapedText t'
+
+    rules =
+            (string "* * *\n" *> return H.hr)
+        <|> (try $ string "* * *" *> endOfInput *> return H.hr)
+        <|> (string "***\n" *> return H.hr)
+        <|> (try $ string "***" *> endOfInput *> return H.hr)
+        <|> (string "*****\n" *> return H.hr)
+        <|> (try $ string "*****" *> endOfInput *> return H.hr)
+        <|> (string "- - -\n" *> return H.hr)
+        <|> (try $ string "- - -" *> endOfInput *> return H.hr)
+        <|> (try $ do
+            x <- takeWhile1 (== '-')
+            char' '\n' <|> endOfInput
+            if T.length x >= 5
+                then return H.hr
+                else fail "not enough dashes"
+                    )
 
     para = do
         ls <- nonEmptyLines
@@ -189,3 +208,6 @@ linkTitle = string " \"" *> many titleChar <* char '"'
 
 titleChar :: Parser Char
 titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')
+
+char' :: Char -> Parser ()
+char' c = char c *> return ()
