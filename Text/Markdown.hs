@@ -24,7 +24,7 @@ import Data.Functor.Identity (runIdentity)
 import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
-    , takeWhile1, notInClass
+    , takeWhile1, notInClass, inClass, satisfy
     )
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
@@ -100,6 +100,7 @@ phrase =
     boldU <|> italicU <|> underscore <|>
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
+    escape <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -113,4 +114,8 @@ phrase =
     code = try $ H.code <$> (char '`' *> phrase <* char '`')
     backtick = toHtml <$> takeWhile1 (== '`')
 
-    normal = toHtml <$> takeWhile1 (notInClass "*_`")
+    escape = char '\\' *>
+        ((toHtml <$> satisfy (inClass "`*_\\")) <|>
+         return "\\")
+
+    normal = toHtml <$> takeWhile1 (notInClass "*_`\\")

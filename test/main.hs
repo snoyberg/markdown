@@ -71,3 +71,8 @@ main = hspecX $ do
     describe "inline code" $ do
         it "simple"
             $ check "<p>foo <code>bar</code> baz</p>" "foo `bar` baz"
+    describe "escaping" $ do
+        it "everything"
+            $ check
+                "<p>*foo_bar<i>baz</i>\\`bin</p>"
+                "\\*foo\\_bar_baz_\\\\\\`bin"
