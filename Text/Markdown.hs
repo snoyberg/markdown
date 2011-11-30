@@ -27,10 +27,12 @@ import Data.Attoparsec.Text
     , takeWhile1, notInClass, inClass, satisfy
     , skipSpace
     )
+import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import Control.Monad (when, unless)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
+import Data.List (intersperse)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -76,6 +78,7 @@ parser :: MarkdownSettings -> Parser Html
 parser ms =
     html
     <|> hashheads <|> underheads
+    <|> codeblock
     <|> para
   where
     html = do
@@ -120,6 +123,12 @@ parser ms =
         _ <- char '\n'
         let l = line x
         return $ (if y == '=' then H.h1 else H.h2) l
+
+    codeblock = H.pre . mconcat . map toHtml . intersperse "\n"
+            <$> many1 indentedLine
+
+indentedLine :: Parser Text
+indentedLine = string "    " *> takeWhile (/= '\n') <* (optional $ char '\n')
 
 line :: Text -> Html
 line = either error mconcat . parseOnly (many phrase)

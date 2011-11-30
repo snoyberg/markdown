@@ -71,6 +71,11 @@ main = hspecX $ do
     describe "inline code" $ do
         it "simple"
             $ check "<p>foo <code>bar</code> baz</p>" "foo `bar` baz"
+    describe "code block" $ do
+        it "simple"
+            $ check
+                "<pre>foo\n bar\nbaz</pre>"
+                "    foo\n     bar\n    baz"
     describe "escaping" $ do
         it "everything"
             $ check
