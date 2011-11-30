@@ -109,3 +109,14 @@ main = hspecX $ do
             $ check
                 "<blockquote><p>foo</p><pre>bar</pre></blockquote>"
                 "> foo\n>\n>     bar"
+    describe "links" $ do
+        it "simple" $ check "<p><a href=\"foo\">bar</a></p>" "[bar](foo)"
+        it "title" $ check
+            "<p><a href=\"foo\" title=\"baz\">bar</a></p>"
+            "[bar](foo \"baz\")"
+        it "escaped href" $ check
+            "<p><a href=\"foo)\" title=\"baz\">bar</a></p>"
+            "[bar](foo\\) \"baz\")"
+        it "escaped title" $ check
+            "<p><a href=\"foo)\" title=\"baz&quot;\">bar</a></p>"
+            "[bar](foo\\) \"baz\\\"\")"

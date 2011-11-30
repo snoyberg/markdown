@@ -11,7 +11,7 @@ import Data.Default (Default (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Text.Blaze (Html, toHtml, preEscapedText)
+import Text.Blaze (Html, toHtml, toValue, preEscapedText, (!))
 import Data.Enumerator
     ( Iteratee, Enumeratee
     , ($$), (=$)
@@ -25,11 +25,12 @@ import Data.Attoparsec.Enumerator (iterParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
-    , skipSpace
+    , skipSpace, anyChar
     )
 import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as HA
 import Control.Monad (when, unless)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Data.List (intersperse)
@@ -148,6 +149,7 @@ phrase =
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
     escape <|>
+    link <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -166,3 +168,24 @@ phrase =
          return "\\")
 
     normal = toHtml <$> takeWhile1 (notInClass "*_`\\")
+
+    link = try $ do
+        _ <- char '['
+        t <- toHtml <$> takeWhile (/= ']')
+        _ <- char ']'
+        _ <- char '('
+        h <- toValue <$> many1 hrefChar
+        mtitle <- optional linkTitle
+        _ <- char ')'
+        return $ case mtitle of
+            Nothing -> H.a ! HA.href h $ t
+            Just title -> H.a ! HA.href h ! HA.title (toValue title) $ toHtml t
+
+hrefChar :: Parser Char
+hrefChar = (char '\\' *> anyChar) <|> satisfy (notInClass " )")
+
+linkTitle :: Parser String
+linkTitle = string " \"" *> many titleChar <* char '"'
+
+titleChar :: Parser Char
+titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')
