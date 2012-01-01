@@ -21,9 +21,9 @@ Library
   Build-depends:       base                   >= 4       && < 5
                      , blaze-html             >= 0.4
                      , attoparsec             >= 0.10
-                     , attoparsec-enumerator  >= 0.3
+                     , attoparsec-conduit     >= 0.0
                      , transformers           >= 0.2.2
-                     , enumerator             >= 0.4
+                     , conduit                >= 0.0
                      , text
                      , data-default           >= 0.3
                      , xss-sanitize

@@ -12,16 +12,11 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Text.Blaze (Html, toHtml, toValue, preEscapedText, (!))
-import Data.Enumerator
-    ( Iteratee, Enumeratee
-    , ($$), (=$)
-    , run_, enumList, consume
-    , sequence
-    )
-import Data.Enumerator.List (fold)
+import qualified Data.Conduit as C
+import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
-import Data.Functor.Identity (runIdentity)
-import Data.Attoparsec.Enumerator (iterParser)
+import Control.Monad.ST (runST)
+import Data.Conduit.Attoparsec (sinkParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
@@ -31,10 +26,11 @@ import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
-import Control.Monad (when, unless)
+import Control.Monad (unless)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Data.List (intersperse)
 import Data.Char (isSpace)
+import Control.Monad.Trans.Resource (runExceptionT_)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -47,18 +43,22 @@ instance Default MarkdownSettings where
 
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
-    runIdentity $ run_ $ enumList 8 (TL.toChunks $ TL.filter (/= '\r') tl)
-                      $$ markdownIter ms
+            runST
+          $ runExceptionT_
+          $ C.runResourceT
+          $ CL.sourceList (TL.toChunks $ TL.filter (/= '\r') tl)
+       C.$$ markdownIter ms
 
-markdownIter :: Monad m
+markdownIter :: C.ResourceThrow m
              => MarkdownSettings
-             -> Iteratee Text m Html
-markdownIter ms = markdownEnum ms =$ fold mappend mempty
+             -> C.Sink Text m Html
+markdownIter ms = markdownEnum ms C.=$ CL.fold mappend mempty
 
-markdownEnum :: Monad m
+markdownEnum :: C.ResourceThrow m
              => MarkdownSettings
-             -> Enumeratee Text Html m a
-markdownEnum = sequence . iterParser . parser
+             -> C.Conduit Text m Html
+markdownEnum ms = C.sequenceSink () $ \() ->
+    C.Emit () . return <$> (sinkParser $ parser ms)
 
 nonEmptyLines :: Parser [Html]
 nonEmptyLines = map line <$> nonEmptyLinesText
@@ -70,7 +70,7 @@ nonEmptyLinesText =
     go :: ([Text] -> [Text]) -> Parser [Text]
     go front = do
         l <- takeWhile (/= '\n')
-        optional $ skip (== '\n')
+        _ <- optional $ skip (== '\n')
         if T.null l then return (front []) else go $ front . (l:)
 
 (<>) :: Monoid m => m -> m -> m
@@ -123,7 +123,7 @@ parser ms =
                     (\a b -> a <> preEscapedText "\n" <> b) ls
 
     hashheads = do
-        c <- char '#'
+        _c <- char '#'
         x <- takeWhile (== '#')
         skipSpace
         l <- takeWhile (/= '\n')
@@ -156,22 +156,32 @@ parser ms =
     bullets = H.ul . mconcat <$> many1 (bullet ms)
     numbers = H.ol . mconcat <$> many1 (number ms)
 
+string' :: Text -> Parser ()
 string' s = string s *> return ()
 
+bulletStart :: Parser ()
 bulletStart = string' "* " <|> string' "- " <|> string' "+ "
 
+bullet :: MarkdownSettings -> Parser Html
 bullet _ms = do
     bulletStart
     content <- itemContent
     return $ H.li $ toHtml content
 
-numberStart = try $ decimal *> satisfy (inClass ".)") *> char' ' '
+numberStart :: Parser ()
+numberStart =
+    try $ decimal' *> satisfy (inClass ".)") *> char' ' '
+  where
+    decimal' :: Parser Int
+    decimal' = decimal
 
+number :: MarkdownSettings -> Parser Html
 number _ms = do
     numberStart
     content <- itemContent
     return $ H.li $ toHtml content
 
+itemContent :: Parser Text
 itemContent = takeWhile (/= '\n') <* (optional $ char' '\n')
 
 indentedLine :: Parser Text
