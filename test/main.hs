@@ -121,6 +121,12 @@ main = hspecX $ do
         it "escaped title" $ check
             "<p><a href=\"foo)\" title=\"baz&quot;\">bar</a></p>"
             "[bar](foo\\) \"baz\\\"\")"
+        it "inside a paragraph" $ check
+            "<p>Hello <a href=\"foo\">bar</a> World</p>"
+            "Hello [bar](foo) World"
+        it "not a link" $ check
+            "<p>Not a [ link</p>"
+            "Not a [ link"
     describe "rules" $ do
         let options = concatMap (\t -> [t, snoc t '\n'])
                 [ "* * *"

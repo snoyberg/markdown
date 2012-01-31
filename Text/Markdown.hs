@@ -4,6 +4,7 @@ module Text.Markdown
     , msXssProtect
     , def
     , markdown
+    , Markdown (..)
     ) where
 
 import Prelude hiding (sequence, takeWhile)
@@ -11,7 +12,7 @@ import Data.Default (Default (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Text.Blaze (Html, toHtml, toValue, preEscapedText, (!))
+import Text.Blaze (Html, ToHtml, toHtml, toValue, preEscapedText, (!))
 import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
@@ -40,6 +41,11 @@ instance Default MarkdownSettings where
     def = MarkdownSettings
         { msXssProtect = True
         }
+
+newtype Markdown = Markdown TL.Text
+
+instance ToHtml Markdown where
+    toHtml (Markdown t) = markdown def t
 
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
@@ -200,7 +206,7 @@ phrase =
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
     escape <|>
-    link <|>
+    link <|> leftBracket <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -218,7 +224,7 @@ phrase =
         ((toHtml <$> satisfy (inClass "`*_\\")) <|>
          return "\\")
 
-    normal = toHtml <$> takeWhile1 (notInClass "*_`\\")
+    normal = toHtml <$> takeWhile1 (notInClass "*_`\\[")
 
     link = try $ do
         _ <- char '['
@@ -231,6 +237,7 @@ phrase =
         return $ case mtitle of
             Nothing -> H.a ! HA.href h $ t
             Just title -> H.a ! HA.href h ! HA.title (toValue title) $ toHtml t
+    leftBracket = toHtml <$> takeWhile1 (== '[')
 
 hrefChar :: Parser Char
 hrefChar = (char '\\' *> anyChar) <|> satisfy (notInClass " )")
