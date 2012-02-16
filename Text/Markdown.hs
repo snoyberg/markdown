@@ -206,7 +206,7 @@ phrase =
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
     escape <|>
-    link <|> leftBracket <|>
+    githubLink <|> link <|> leftBracket <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -225,6 +225,23 @@ phrase =
          return "\\")
 
     normal = toHtml <$> takeWhile1 (notInClass "*_`\\[")
+
+    githubLink = try $ do
+        _ <- string "[["
+        t1 <- takeWhile1 (\c -> c /= '|' && c /= ']')
+        mt2 <- (char '|' >> fmap Just (takeWhile1 (/= ']'))) <|>
+               return Nothing
+        _ <- string "]]"
+
+        let (href', text) =
+                case mt2 of
+                    Nothing -> (t1, t1)
+                    Just t2 -> (t2, t1)
+        let href = T.map fix href' `T.append` ".md"
+            fix ' ' = '-'
+            fix '/' = '-'
+            fix c   = c
+        return $ H.a ! HA.href (toValue href) $ toHtml text
 
     link = try $ do
         _ <- char '['

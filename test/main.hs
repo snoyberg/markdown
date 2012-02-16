@@ -127,6 +127,10 @@ main = hspecX $ do
         it "not a link" $ check
             "<p>Not a [ link</p>"
             "Not a [ link"
+
+    describe "github links" $ do
+        it "simple" $ check "<p><a href=\"foo.md\">bar</a></p>" "[[bar|foo]]"
+        it "escaping" $ check "<p><a href=\"foo-baz-bin.md\">bar</a></p>" "[[bar|foo/baz bin]]"
     describe "rules" $ do
         let options = concatMap (\t -> [t, snoc t '\n'])
                 [ "* * *"
