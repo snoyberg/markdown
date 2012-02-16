@@ -129,8 +129,10 @@ main = hspecX $ do
             "Not a [ link"
 
     describe "github links" $ do
-        it "simple" $ check "<p><a href=\"foo.md\">bar</a></p>" "[[bar|foo]]"
-        it "escaping" $ check "<p><a href=\"foo-baz-bin.md\">bar</a></p>" "[[bar|foo/baz bin]]"
+        it "simple" $ check "<p><a href=\"foo\">bar</a></p>" "[[bar|foo]]"
+        it "no link text" $ check "<p><a href=\"foo\">foo</a></p>" "[[foo]]"
+        it "escaping" $ check "<p><a href=\"foo-baz-bin\">bar</a></p>" "[[bar|foo/baz bin]]"
+        it "inside a list" $ check "<ul><li><a href=\"foo\">foo</a></li></ul>" "* [[foo]]"
     describe "rules" $ do
         let options = concatMap (\t -> [t, snoc t '\n'])
                 [ "* * *"
@@ -141,3 +143,10 @@ main = hspecX $ do
                 , "----------------------------------"
                 ]
         forM_ options $ \o -> it (unpack o) $ check "<hr>" o
+
+    describe "html" $ do
+        it "inline" $ check "<p>foo<br>bar</p>" "foo<br>bar"
+        it "inline xss" $ check "<p>foo<br>bar</p>" "foo<br onclick='evil'>bar"
+        it "block" $ check "<div>hello world</div>" "<div>hello world</div>"
+        it "block xss" $ check "alert('evil')" "<script>alert('evil')</script>"
+        it "should be escaped" $ check "<p>1 &lt; 2</p>" "1 < 2"

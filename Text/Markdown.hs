@@ -27,11 +27,12 @@ import Data.Attoparsec.Combinator (many1)
 import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
-import Control.Monad (unless)
+import Control.Monad (unless, guard)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Data.List (intersperse)
-import Data.Char (isSpace)
+import Data.Char (isSpace, isAlpha)
 import Control.Monad.Trans.Resource (runExceptionT_)
+import Text.Blaze.Renderer.Text (renderHtml)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -172,7 +173,7 @@ bullet :: MarkdownSettings -> Parser Html
 bullet _ms = do
     bulletStart
     content <- itemContent
-    return $ H.li $ toHtml content
+    return $ H.li content
 
 numberStart :: Parser ()
 numberStart =
@@ -185,10 +186,12 @@ number :: MarkdownSettings -> Parser Html
 number _ms = do
     numberStart
     content <- itemContent
-    return $ H.li $ toHtml content
+    return $ H.li content
 
-itemContent :: Parser Text
-itemContent = takeWhile (/= '\n') <* (optional $ char' '\n')
+itemContent :: Parser Html
+itemContent = do
+    t <- takeWhile (/= '\n') <* (optional $ char' '\n')
+    return $ line t
 
 indentedLine :: Parser Text
 indentedLine = string "    " *> takeWhile (/= '\n') <* (optional $ char '\n')
@@ -198,7 +201,10 @@ blockedLine = (string ">\n" *> return "") <|>
               (string "> " *> takeWhile (/= '\n') <* (optional $ char '\n'))
 
 line :: Text -> Html
-line = either error mconcat . parseOnly (many phrase)
+line t =
+    preEscapedText $ sanitizeBalance $ TL.toStrict $ renderHtml h
+  where
+    h = either error mconcat $ parseOnly (many phrase) t
 
 phrase :: Parser Html
 phrase =
@@ -207,6 +213,7 @@ phrase =
     code <|> backtick <|>
     escape <|>
     githubLink <|> link <|> leftBracket <|>
+    tag <|> lessThan <|>
     normal
   where
     bold = try $ H.b <$> (string "**" *> phrase <* string "**")
@@ -224,7 +231,7 @@ phrase =
         ((toHtml <$> satisfy (inClass "`*_\\")) <|>
          return "\\")
 
-    normal = toHtml <$> takeWhile1 (notInClass "*_`\\[")
+    normal = toHtml <$> takeWhile1 (notInClass "*_`\\[<")
 
     githubLink = try $ do
         _ <- string "[["
@@ -237,7 +244,7 @@ phrase =
                 case mt2 of
                     Nothing -> (t1, t1)
                     Just t2 -> (t2, t1)
-        let href = T.map fix href' `T.append` ".md"
+        let href = T.map fix href'
             fix ' ' = '-'
             fix '/' = '-'
             fix c   = c
@@ -255,6 +262,16 @@ phrase =
             Nothing -> H.a ! HA.href h $ t
             Just title -> H.a ! HA.href h ! HA.title (toValue title) $ toHtml t
     leftBracket = toHtml <$> takeWhile1 (== '[')
+
+    tag = try $ do
+        _ <- char '<'
+        name <- takeWhile1 $ \c -> not (isSpace c) && c /= '>'
+        guard $ T.all (\c -> isAlpha c || c == '/') name
+        rest <- takeWhile (/= '>')
+        _ <- char '>'
+        return $ preEscapedText $ T.concat ["<", name, rest, ">"]
+
+    lessThan = char '<' >> return "<"
 
 hrefChar :: Parser Char
 hrefChar = (char '\\' *> anyChar) <|> satisfy (notInClass " )")
