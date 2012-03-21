@@ -154,7 +154,7 @@ parser ms =
         let l = line x
         return $ (if y == '=' then H.h1 else H.h2) l
 
-    codeblock = H.pre . mconcat . map toHtml . intersperse "\n"
+    codeblock = H.pre . H.code . mconcat . map toHtml . intersperse "\n"
             <$> many1 indentedLine
 
     blockquote = H.blockquote . markdown ms . TL.fromChunks . intersperse "\n"
