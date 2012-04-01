@@ -16,7 +16,7 @@ import Text.Blaze (Html, ToHtml, toHtml, toValue, preEscapedText, (!))
 import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
-import Control.Monad.ST (runST)
+import Data.Functor.Identity (runIdentity)
 import Data.Conduit.Attoparsec (sinkParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
@@ -50,18 +50,17 @@ instance ToHtml Markdown where
 
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
-            runST
+            runIdentity
           $ runExceptionT_
-          $ C.runResourceT
           $ CL.sourceList (TL.toChunks $ TL.filter (/= '\r') tl)
        C.$$ markdownIter ms
 
-markdownIter :: C.ResourceThrow m
+markdownIter :: C.MonadThrow m
              => MarkdownSettings
              -> C.Sink Text m Html
 markdownIter ms = markdownEnum ms C.=$ CL.fold mappend mempty
 
-markdownEnum :: C.ResourceThrow m
+markdownEnum :: C.MonadThrow m
              => MarkdownSettings
              -> C.Conduit Text m Html
 markdownEnum ms = C.sequenceSink () $ \() ->

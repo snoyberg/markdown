@@ -75,7 +75,7 @@ main = hspecX $ do
     describe "code block" $ do
         it "simple"
             $ check
-                "<pre>foo\n bar\nbaz</pre>"
+                "<pre><code>foo\n bar\nbaz</code></pre>"
                 "    foo\n     bar\n    baz"
     describe "escaping" $ do
         it "everything"
@@ -108,7 +108,7 @@ main = hspecX $ do
     describe "blockquotes" $ do
         it "simple"
             $ check
-                "<blockquote><p>foo</p><pre>bar</pre></blockquote>"
+                "<blockquote><p>foo</p><pre><code>bar</code></pre></blockquote>"
                 "> foo\n>\n>     bar"
     describe "links" $ do
         it "simple" $ check "<p><a href=\"foo\">bar</a></p>" "[bar](foo)"
