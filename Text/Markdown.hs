@@ -12,7 +12,7 @@ import Data.Default (Default (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Text.Blaze (Html, ToHtml, toHtml, toValue, preEscapedText, (!))
+import Text.Blaze.Html (Html, ToMarkup (..), toHtml, toValue, preEscapedToMarkup, (!))
 import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
@@ -32,7 +32,7 @@ import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Data.List (intersperse)
 import Data.Char (isSpace, isAlpha)
 import Control.Monad.Trans.Resource (runExceptionT_)
-import Text.Blaze.Renderer.Text (renderHtml)
+import Text.Blaze.Html.Renderer.Text (renderHtml)
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -45,8 +45,8 @@ instance Default MarkdownSettings where
 
 newtype Markdown = Markdown TL.Text
 
-instance ToHtml Markdown where
-    toHtml (Markdown t) = markdown def t
+instance ToMarkup Markdown where
+    toMarkup (Markdown t) = markdown def t
 
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
@@ -102,7 +102,7 @@ parser ms =
                     [] -> [T.singleton c]
         let t = T.intercalate "\n" ls
         let t' = if msXssProtect ms then sanitizeBalance t else t
-        return $ preEscapedText t'
+        return $ preEscapedToMarkup t'
 
     rules =
             (string "* * *\n" *> return H.hr)
@@ -126,7 +126,7 @@ parser ms =
         return $ if (null ls)
             then mempty
             else H.p $ foldr1
-                    (\a b -> a <> preEscapedText "\n" <> b) ls
+                    (\a b -> a <> "\n" <> b) ls
 
     hashheads = do
         _c <- char '#'
@@ -201,7 +201,7 @@ blockedLine = (string ">\n" *> return "") <|>
 
 line :: Text -> Html
 line t =
-    preEscapedText $ sanitizeBalance $ TL.toStrict $ renderHtml h
+    preEscapedToMarkup $ sanitizeBalance $ TL.toStrict $ renderHtml h
   where
     h = either error mconcat $ parseOnly (many phrase) t
 
@@ -268,7 +268,7 @@ phrase =
         guard $ T.all (\c -> isAlpha c || c == '/') name
         rest <- takeWhile (/= '>')
         _ <- char '>'
-        return $ preEscapedText $ T.concat ["<", name, rest, ">"]
+        return $ preEscapedToMarkup $ T.concat ["<", name, rest, ">"]
 
     lessThan = char '<' >> return "<"
 
