@@ -4,7 +4,7 @@ import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc)
-import Text.Blaze.Renderer.Text (renderHtml)
+import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
 
 check :: Text -> Text -> Assertion
@@ -16,7 +16,7 @@ check' html md = html @=? renderHtml (markdown def { msXssProtect = False } md)
 -- FIXME add quickcheck: all input is valid
 
 main :: IO ()
-main = hspecX $ do
+main = hspec $ do
     describe "paragraphs" $ do
         it "simple"
             $ check "<p>Hello World!</p>" "Hello World!"

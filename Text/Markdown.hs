@@ -17,7 +17,7 @@ import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
 import Data.Functor.Identity (runIdentity)
-import Data.Conduit.Attoparsec (sinkParser)
+import Data.Conduit.Attoparsec (conduitParser)
 import Data.Attoparsec.Text
     ( Parser, takeWhile, string, skip, char, parseOnly, try
     , takeWhile1, notInClass, inClass, satisfy
@@ -63,8 +63,7 @@ markdownIter ms = markdownEnum ms C.=$ CL.fold mappend mempty
 markdownEnum :: C.MonadThrow m
              => MarkdownSettings
              -> C.Conduit Text m Html
-markdownEnum ms = C.sequenceSink () $ \() ->
-    C.Emit () . return <$> (sinkParser $ parser ms)
+markdownEnum ms = C.mapOutput snd $ conduitParser $ parser ms
 
 nonEmptyLines :: Parser [Html]
 nonEmptyLines = map line <$> nonEmptyLinesText

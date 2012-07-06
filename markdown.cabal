@@ -21,9 +21,9 @@ Library
   Build-depends:       base                   >= 4       && < 5
                      , blaze-html             >= 0.4
                      , attoparsec             >= 0.10
-                     , attoparsec-conduit     >= 0.3
+                     , attoparsec-conduit     >= 0.5     && < 0.6
                      , transformers           >= 0.2.2
-                     , conduit                >= 0.3
+                     , conduit                >= 0.5     && < 0.6
                      , resourcet              >= 0.3
                      , text
                      , data-default           >= 0.3
@@ -38,7 +38,7 @@ test-suite test
     build-depends: markdown
                  , base             >= 4       && < 5
                  , HUnit
-                 , hspec            >= 0.8
+                 , hspec            >= 1.2
                  , blaze-html
                  , text
 
