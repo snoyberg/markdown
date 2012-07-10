@@ -210,7 +210,8 @@ phrase =
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
     escape <|>
-    githubLink <|> img <|> link <|> leftBracket <|>
+    img <|> exclamationPoint <|>
+    githubLink <|> link <|> leftBracket <|>
     tag <|> lessThan <|>
     normal
   where
@@ -229,7 +230,7 @@ phrase =
         ((toHtml <$> satisfy (inClass "`*_\\")) <|>
          return "\\")
 
-    normal = toHtml <$> takeWhile1 (notInClass "*_`\\[<")
+    normal = toHtml <$> takeWhile1 (notInClass "*_`\\![<")
 
     githubLink = try $ do
         _ <- string "[["
@@ -274,6 +275,7 @@ phrase =
             Just title -> H.img ! HA.src h ! HA.alt a ! HA.title (toValue title)
 
     leftBracket = toHtml <$> takeWhile1 (== '[')
+    exclamationPoint = toHtml <$> takeWhile1 (== '!')
 
     tag = try $ do
         _ <- char '<'
