@@ -133,6 +133,18 @@ main = hspec $ do
         it "no link text" $ check "<p><a href=\"foo\">foo</a></p>" "[[foo]]"
         it "escaping" $ check "<p><a href=\"foo-baz-bin\">bar</a></p>" "[[bar|foo/baz bin]]"
         it "inside a list" $ check "<ul><li><a href=\"foo\">foo</a></li></ul>" "* [[foo]]"
+
+    describe "images" $ do
+        it "simple" $ check 
+            "<p><img src=\"http://link.to/image.jpg\" alt=\"foo\"></p>"
+            "![foo](http://link.to/image.jpg)"
+        it "title" $ check
+            "<p><img src=\"http://link.to/image.jpg\" alt=\"foo\" title=\"bar\"></p>"
+            "![foo](http://link.to/image.jpg \"bar\")"
+        it "not an image" $ check
+            "<p>Not an ![ image</p>"
+            "Not an ![ image"
+
     describe "rules" $ do
         let options = concatMap (\t -> [t, snoc t '\n'])
                 [ "* * *"
