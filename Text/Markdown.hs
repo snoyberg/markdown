@@ -210,7 +210,7 @@ phrase =
     bold <|> italic <|> asterisk <|>
     code <|> backtick <|>
     escape <|>
-    githubLink <|> link <|> leftBracket <|>
+    githubLink <|> img <|> link <|> leftBracket <|>
     tag <|> lessThan <|>
     normal
   where
@@ -259,6 +259,17 @@ phrase =
         return $ case mtitle of
             Nothing -> H.a ! HA.href h $ t
             Just title -> H.a ! HA.href h ! HA.title (toValue title) $ toHtml t
+
+    img = try $ do
+        _ <- char '!'
+        _ <- char '['
+        a <- toValue <$> takeWhile (/= ']')
+        _ <- char ']'
+        _ <- char '('
+        h <- toValue <$> many1 hrefChar
+        _ <- char ')'
+        return $ H.img ! HA.src h ! HA.alt a
+
     leftBracket = toHtml <$> takeWhile1 (== '[')
 
     tag = try $ do
