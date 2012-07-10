@@ -141,6 +141,9 @@ main = hspec $ do
         it "title" $ check
             "<p><img src=\"http://link.to/image.jpg\" alt=\"foo\" title=\"bar\"></p>"
             "![foo](http://link.to/image.jpg \"bar\")"
+        it "inside a paragraph" $ check
+            "<p>Hello <img src=\"http://link.to/image.jpg\" alt=\"foo\"> World"
+            "Hello ![foo](http://link.to/image.jpg) World"
         it "not an image" $ check
             "<p>Not an ![ image</p>"
             "Not an ![ image"
