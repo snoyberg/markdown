@@ -267,8 +267,11 @@ phrase =
         _ <- char ']'
         _ <- char '('
         h <- toValue <$> many1 hrefChar
+        mtitle <- optional linkTitle -- links and images work the same way
         _ <- char ')'
-        return $ H.img ! HA.src h ! HA.alt a
+        return $ case mtitle of
+            Nothing -> H.img ! HA.src h ! HA.alt a
+            Just title -> H.img ! HA.src h ! HA.alt a ! HA.title (toValue title)
 
     leftBracket = toHtml <$> takeWhile1 (== '[')
 
