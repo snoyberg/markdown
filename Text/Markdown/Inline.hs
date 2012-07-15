@@ -114,7 +114,7 @@ inline =
 
     html = do
         c <- char '<'
-        t <- takeWhile1 (\x -> ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z'))
+        t <- takeWhile1 (\x -> ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z') || x == '/')
         if T.null t
             then fail "invalid tag"
             else do
