@@ -14,6 +14,7 @@ import Data.Default (Default (..))
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html (ToMarkup (..), Html)
+import Text.Blaze.Html.Renderer.Text (renderHtml)
 import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
@@ -105,9 +106,11 @@ escape :: Text -> Html
 escape = preEscapedToMarkup
 
 toHtmlI :: MarkdownSettings -> [Inline] -> Html
-toHtmlI _ms =
-    gos
+toHtmlI ms is0
+    | msXssProtect ms = escape $ sanitizeBalance $ TL.toStrict $ renderHtml final
+    | otherwise = final
   where
+    final = gos is0
     gos = mconcat . map go
 
     go (InlineText t) = toMarkup t
@@ -118,6 +121,7 @@ toHtmlI _ms =
     go (InlineLink url (Just title) content) = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) $ gos content
     go (InlineImage url Nothing content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content)
     go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
+    go (InlineHtml t) = escape t
 
 {-
 nonEmptyLines :: Parser [Html]

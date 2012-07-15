@@ -25,7 +25,7 @@ data Inline = InlineText Text
             | InlineItalic [Inline]
             | InlineBold [Inline]
             | InlineCode Text
-            -- | InlineHtml 
+            | InlineHtml Text
             | InlineLink Text (Maybe Text) [Inline] -- ^ URL, title, content
             | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
     deriving (Show, Eq)
@@ -45,6 +45,7 @@ combine (InlineCode x:InlineCode y:rest) = combine (InlineCode (x <> y):rest)
 combine (InlineCode x:rest) = InlineCode x : combine rest
 combine (InlineLink u t c:rest) = InlineLink u t (combine c) : combine rest
 combine (InlineImage u t c:rest) = InlineImage u t c : combine rest
+combine (InlineHtml t:rest) = InlineHtml t : combine rest
 
 inlinesTill :: Text -> Parser [Inline]
 inlinesTill end =
@@ -57,7 +58,7 @@ inlinesTill end =
             go $ front . (x:))
 
 specials :: [Char]
-specials = "*_`\\[]!"
+specials = "*_`\\[]!<"
 
 inlineAny :: Parser Inline
 inlineAny =
@@ -74,6 +75,7 @@ inline =
     <|> code
     <|> link
     <|> image
+    <|> html
   where
     text = InlineText <$> takeWhile1 (`notElem` specials)
 
@@ -105,3 +107,18 @@ inline =
         return $ InlineImage url mtitle content
 
     title = space *> char '"' *> takeWhile1 (/= '"') <* char '"'
+
+    html = do
+        c <- char '<'
+        t <- takeWhile1 (\x -> ('A' <= x && x <= 'Z') || ('a' <= x && x <= 'z'))
+        if T.null t
+            then fail "invalid tag"
+            else do
+                t2 <- takeWhile (/= '>')
+                c2 <- char '>'
+                return $ InlineHtml $ T.concat
+                    [ T.singleton c
+                    , t
+                    , t2
+                    , T.singleton c2
+                    ]
