@@ -1,10 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Text.Markdown
-    ( MarkdownSettings
+    ( -- * Functions
+      markdown
+      -- * Settings
+    , MarkdownSettings
     , msXssProtect
-    , def
-    , markdown
+      -- * Newtype
     , Markdown (..)
+      -- * Convenience re-exports.
+    , def
     ) where
 
 import Text.Markdown.Inline
@@ -23,8 +27,13 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 
+-- | A settings type providing various configuration options.
+--
+-- See <http://www.yesodweb.com/book/settings-types> for more information on
+-- settings types. In general, you can use @def@.
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
+      -- ^ Whether to automatically apply XSS protection to embedded HTML. Default: @True@.
     }
 
 instance Default MarkdownSettings where
@@ -32,11 +41,21 @@ instance Default MarkdownSettings where
         { msXssProtect = True
         }
 
+-- | A newtype wrapper providing a @ToHtml@ instance.
 newtype Markdown = Markdown TL.Text
 
 instance ToMarkup Markdown where
     toMarkup (Markdown t) = markdown def t
 
+-- | Convert the given textual markdown content to HTML.
+--
+-- >>> :set -XOverloadedStrings
+-- >>> import Text.Blaze.Html.Renderer.Text
+-- >>> renderHtml $ markdown def "# Hello World!"
+-- "<h1>Hello World!</h1>"
+--
+-- >>> renderHtml $ markdown def { msXssProtect = False } "<script>alert('evil')</script>"
+-- "<script>alert('evil')</script>"
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
     runIdentity
