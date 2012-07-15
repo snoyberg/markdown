@@ -23,7 +23,7 @@ Library
                      , attoparsec             >= 0.10
                      , attoparsec-conduit     >= 0.5     && < 0.6
                      , transformers           >= 0.2.2
-                     , conduit                >= 0.5     && < 0.6
+                     , conduit                >= 0.5.2.1 && < 0.6
                      , resourcet              >= 0.3
                      , text
                      , data-default           >= 0.3
