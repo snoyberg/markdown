@@ -25,7 +25,7 @@ blockSpecs = do
             [BlockCode Nothing "foo\n\nbar"]
         it "no close" $ check
             "~~~\nfoo\n\nbar\n"
-            [BlockPara " ~~~ foo", BlockPara "bar"]
+            [BlockPara " ~~~\nfoo", BlockPara "bar"]
     describe "list" $ do
         it "simple" $ check
             "* foo\n*    bar"

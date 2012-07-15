@@ -13,7 +13,10 @@ import Control.Applicative
 import Data.Monoid (Monoid, mappend)
 
 toInline :: Text -> [Inline]
-toInline = undefined
+toInline t =
+    case parseOnly inlineParser t of
+        Left s -> [InlineText $ T.pack s]
+        Right is -> is
 
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
@@ -24,6 +27,7 @@ data Inline = InlineText Text
             | InlineCode Text
             -- | InlineHtml 
             | InlineLink Text (Maybe Text) [Inline] -- ^ URL, title, content
+            | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
     deriving (Show, Eq)
 
 inlineParser :: Parser [Inline]
@@ -40,6 +44,7 @@ combine (InlineBold x:rest) = InlineBold (combine x) : combine rest
 combine (InlineCode x:InlineCode y:rest) = combine (InlineCode (x <> y):rest)
 combine (InlineCode x:rest) = InlineCode x : combine rest
 combine (InlineLink u t c:rest) = InlineLink u t (combine c) : combine rest
+combine (InlineImage u t c:rest) = InlineImage u t c : combine rest
 
 inlinesTill :: Text -> Parser [Inline]
 inlinesTill end =
@@ -52,7 +57,7 @@ inlinesTill end =
             go $ front . (x:))
 
 specials :: [Char]
-specials = "*_`\\[]"
+specials = "*_`\\[]!"
 
 inlineAny :: Parser Inline
 inlineAny =
@@ -68,10 +73,14 @@ inline =
     <|> paired "*" InlineItalic <|> paired "_" InlineItalic
     <|> code
     <|> link
+    <|> image
   where
     text = InlineText <$> takeWhile1 (`notElem` specials)
 
-    paired t wrap = wrap <$> (string t *> inlinesTill t)
+    paired t wrap = wrap <$> do
+        _ <- string t
+        is <- inlinesTill t
+        if null is then fail "wrapped around something missing" else return is
 
     code = InlineCode <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
 
@@ -85,5 +94,14 @@ inline =
         mtitle <- (Just <$> title) <|> pure Nothing
         _ <- char ')'
         return $ InlineLink url mtitle content
+
+    image = do
+        _ <- string "!["
+        content <- takeWhile (/= ']')
+        _ <- string "]("
+        url <- takeWhile1 (`notElem` " )")
+        mtitle <- (Just <$> title) <|> pure Nothing
+        _ <- char ')'
+        return $ InlineImage url mtitle content
 
     title = space *> char '"' *> takeWhile1 (/= '"') <* char '"'

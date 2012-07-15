@@ -7,36 +7,20 @@ module Text.Markdown
     , Markdown (..)
     ) where
 
+import Text.Markdown.Inline
+import Text.Markdown.Block
 import Prelude hiding (sequence, takeWhile)
 import Data.Default (Default (..))
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Text.Blaze.Html (Html, ToMarkup (..), toHtml, toValue, preEscapedToMarkup, (!))
+import Text.Blaze.Html (ToMarkup (..), Html)
 import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import Data.Monoid (Monoid (mappend, mempty, mconcat))
 import Data.Functor.Identity (runIdentity)
-import Data.Conduit.Attoparsec (conduitParser)
-import Data.Attoparsec.Text
-    ( Parser, takeWhile, string, skip, char, parseOnly, try
-    , takeWhile1, notInClass, inClass, satisfy
-    , skipSpace, anyChar, endOfInput, decimal
-    )
-import Data.Attoparsec.Combinator (many1)
-import Control.Applicative ((<$>), (<|>), optional, (*>), (<*), many)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
-import Control.Monad (unless, guard)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
-import Data.List (intersperse)
-import Data.Char (isSpace, isAlpha)
-import Control.Monad.Trans.Resource (runExceptionT_)
-import Text.Blaze.Html.Renderer.Text (renderHtml)
-{- FIXME
-import Text.Markdown.Inline
-import Text.Markdown.Block
--}
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool
@@ -55,20 +39,87 @@ instance ToMarkup Markdown where
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
             runIdentity
-          $ runExceptionT_
           $ CL.sourceList (TL.toChunks $ TL.filter (/= '\r') tl)
-       C.$$ markdownIter ms
+       C.$$ markdownSink ms
 
-markdownIter :: C.MonadThrow m
+markdownSink :: Monad m
              => MarkdownSettings
              -> C.Sink Text m Html
-markdownIter ms = markdownEnum ms C.=$ CL.fold mappend mempty
+markdownSink ms = markdownConduit ms C.=$ CL.fold mappend mempty
 
-markdownEnum :: C.MonadThrow m
-             => MarkdownSettings
-             -> C.Conduit Text m Html
-markdownEnum ms = C.mapOutput snd $ conduitParser $ parser ms
+markdownConduit :: Monad m
+                => MarkdownSettings
+                -> C.Conduit Text m Html
+markdownConduit ms = C.mapOutput (fmap (toHtmlI ms . toInline)) toBlocks C.=$= toHtmlB ms
 
+data MState = NoState | InList ListType
+
+toHtmlB :: Monad m => MarkdownSettings -> C.GInfConduit (Block Html) m Html
+toHtmlB ms =
+    loop NoState
+  where
+    loop state = C.awaitE >>= either
+        (\e -> closeState state >> return e)
+        (\x -> do
+            state' <- getState state x
+            C.yield $ go x
+            loop state')
+
+    closeState NoState = return ()
+    closeState (InList Unordered) = C.yield $ escape "</ul>"
+    closeState (InList Ordered) = C.yield $ escape "</ol>"
+
+    getState NoState (BlockList ltype _) = do
+        C.yield $ escape $
+            case ltype of
+                Unordered -> "<ul>"
+                Ordered -> "<ol>"
+        return $ InList ltype
+    getState NoState _ = return NoState
+    getState state@(InList lt1) b@(BlockList lt2 _)
+        | lt1 == lt2 = return state
+        | otherwise = closeState state >> getState NoState b
+    getState state@(InList _) _ = closeState state >> return NoState
+
+    go (BlockPara h) = H.p h
+    go (BlockList _ (Left h)) = H.li h
+    go (BlockList _ (Right bs)) = H.li $ blocksToHtml bs
+    go (BlockHtml t) = escape $ (if msXssProtect ms then sanitizeBalance else id) t
+    go (BlockCode Nothing t) = H.pre $ H.code $ toMarkup t
+    go (BlockCode (Just lang) t) = H.pre $ H.code H.! HA.class_ (H.toValue lang) $ toMarkup t
+    go (BlockQuote bs) = H.blockquote $ blocksToHtml bs
+    go BlockRule = H.hr
+    go (BlockHeading level h) =
+        wrap level h
+      where
+       wrap 1 = H.h1
+       wrap 2 = H.h2
+       wrap 3 = H.h3
+       wrap 4 = H.h4
+       wrap 5 = H.h5
+       wrap _ = H.h6
+
+    blocksToHtml bs = runIdentity $ mapM_ C.yield bs C.$$ toHtmlB ms C.=$ CL.fold mappend mempty
+
+escape :: Text -> Html
+escape = preEscapedToMarkup
+
+toHtmlI :: MarkdownSettings -> [Inline] -> Html
+toHtmlI _ms =
+    gos
+  where
+    gos = mconcat . map go
+
+    go (InlineText t) = toMarkup t
+    go (InlineItalic is) = H.i $ gos is
+    go (InlineBold is) = H.b $ gos is
+    go (InlineCode t) = H.code $ toMarkup t
+    go (InlineLink url Nothing content) = H.a H.! HA.href (H.toValue url) $ gos content
+    go (InlineLink url (Just title) content) = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) $ gos content
+    go (InlineImage url Nothing content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content)
+    go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
+
+{-
 nonEmptyLines :: Parser [Html]
 nonEmptyLines = map line <$> nonEmptyLinesText
 
@@ -302,3 +353,4 @@ titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')
 
 char' :: Char -> Parser ()
 char' c = char c *> return ()
+-}

@@ -23,6 +23,8 @@ data Block inline
     | BlockCode (Maybe Text) Text
     | BlockQuote [Block inline]
     | BlockHtml Text
+    | BlockRule
+    | BlockHeading Int inline
   deriving (Show, Eq)
 
 instance Functor Block where
@@ -32,12 +34,14 @@ instance Functor Block where
     fmap _ (BlockCode a b) = BlockCode a b
     fmap f (BlockQuote bs) = BlockQuote $ map (fmap f) bs
     fmap _ (BlockHtml t) = BlockHtml t
+    fmap _ BlockRule = BlockRule
+    fmap f (BlockHeading level i) = BlockHeading level (f i)
 
-toBlocks :: Monad m => GInfConduit Text m (Block Text)
-toBlocks = mapOutput noCR CT.lines >+> toBlocksLines
+toBlocks :: Monad m => Conduit Text m (Block Text)
+toBlocks = mapOutput noCR CT.lines =$= toBlocksLines
 
-toBlocksLines :: Monad m => GInfConduit Text m (Block Text)
-toBlocksLines = injectLeftovers $ awaitForever start
+toBlocksLines :: Monad m => GLInfConduit Text m (Block Text)
+toBlocksLines = awaitForever start
 
 noCR :: Text -> Text
 noCR t
@@ -48,6 +52,7 @@ noCR t
 start :: Monad m => Text -> GLConduit Text m (Block Text)
 start t
     | T.null $ T.strip t = return ()
+    | isRule t = yield BlockRule
     | Just lang <- T.stripPrefix "~~~" t = do
         (finished, ls) <- takeTill (== "~~~") >+> withUpstream CL.consume
         if finished
@@ -57,6 +62,7 @@ start t
         ls <- takeQuotes >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines =$ CL.consume
         yield $ BlockQuote blocks
+    | Just (level, t') <- stripHeading t = yield $ BlockHeading level t'
     | Just t' <- T.stripPrefix "    " t = do
         ls <- getIndented 4 >+> CL.consume
         yield $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
@@ -74,8 +80,15 @@ start t
             else yield $ BlockList ltype $ Left t''
 
     | otherwise = do
-        ls <- takeTill (T.null . T.strip) >+> CL.consume
-        yield $ BlockPara $ T.unwords $ t : ls
+        -- Check for underline headings
+        t2 <- CL.peek
+        case t2 >>= getUnderline of
+            Nothing -> do
+                ls <- takeTill (T.null . T.strip) >+> CL.consume
+                yield $ BlockPara $ T.intercalate "\n" $ t : ls
+            Just level -> do
+                CL.drop 1
+                yield $ BlockHeading level t
 
 takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m Bool
 takeTill f =
@@ -128,3 +141,24 @@ takeQuotes =
     go t
         | Just t' <- T.stripPrefix "> " t = yield t' >> takeQuotes
         | otherwise = leftover t
+
+isRule :: Text -> Bool
+isRule "* * *" = True
+isRule "***" = True
+isRule "*****" = True
+isRule "- - -" = True
+isRule t = T.length (T.takeWhile (== '-') t) >= 5
+
+stripHeading :: Text -> Maybe (Int, Text)
+stripHeading t
+    | T.null x = Nothing
+    | otherwise = Just (T.length x, T.strip $ T.dropWhileEnd (== '#') y)
+  where
+    (x, y) = T.span (== '#') t
+
+getUnderline :: Text -> Maybe Int
+getUnderline t
+    | T.length t < 2 = Nothing
+    | T.all (== '=') t = Just 1
+    | T.all (== '-') t = Just 2
+    | otherwise = Nothing
