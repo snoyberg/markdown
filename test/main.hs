@@ -3,9 +3,12 @@ import Test.Hspec.Monadic
 import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown
-import Data.Text.Lazy (Text, unpack, snoc)
+import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
+
+import qualified Filesystem.Path.CurrentOS as F
+import qualified Filesystem as F
 
 check :: Text -> Text -> Assertion
 check html md = html @=? renderHtml (markdown def md)
@@ -16,7 +19,9 @@ check' html md = html @=? renderHtml (markdown def { msXssProtect = False } md)
 -- FIXME add quickcheck: all input is valid
 
 main :: IO ()
-main = hspec $ do
+main = do
+  examples <- getExamples
+  hspec $ do
     describe "paragraphs" $ do
         it "simple"
             $ check "<p>Hello World!</p>" "Hello World!"
@@ -165,3 +170,13 @@ main = hspec $ do
         it "block" $ check "<div>hello world</div>" "<div>hello world</div>"
         it "block xss" $ check "alert('evil')" "<script>alert('evil')</script>"
         it "should be escaped" $ check "<p>1 &lt; 2</p>" "1 < 2"
+    describe "examples" $ sequence_ examples
+
+getExamples = do
+    files <- F.listDirectory "test/examples"
+    mapM go $ filter (flip F.hasExtension "md") files
+  where
+    go fp = do
+        input <- F.readTextFile fp
+        output <- F.readTextFile $ F.replaceExtension fp "html"
+        return $ it (F.encodeString $ F.basename fp) $ check (fromStrict output) (fromStrict input)
