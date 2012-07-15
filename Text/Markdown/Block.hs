@@ -21,6 +21,7 @@ data Block inline
     | BlockList ListType (Either inline [Block inline])
     | BlockCode (Maybe Text) Text
     | BlockQuote [Block inline]
+    | BlockHtml Text
   deriving (Show, Eq)
 
 toBlocks :: Monad m => GInfConduit Text m (Block Text)
@@ -50,6 +51,9 @@ start t
     | Just t' <- T.stripPrefix "    " t = do
         ls <- getIndented 4 >+> CL.consume
         yield $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
+    | T.isPrefixOf "<" t = do
+        ls <- takeTill (T.null . T.strip) >+> CL.consume
+        yield $ BlockHtml $ T.intercalate "\n" $ t : ls
     | Just (ltype, t') <- listStart t = do
         let (spaces, t'') = T.span (== ' ') t'
         if T.length spaces >= 2

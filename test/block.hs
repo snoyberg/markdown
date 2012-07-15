@@ -75,3 +75,12 @@ main = hspec $ do
             "    foo\n\n     bar\n"
             [ BlockCode Nothing "foo\n\n bar"
             ]
+    describe "html" $ do
+        it "simple" $ check
+            "<p>Hello world!</p>"
+            [ BlockHtml "<p>Hello world!</p>"
+            ]
+        it "multiline" $ check
+            "<p>Hello world!\n</p>"
+            [ BlockHtml "<p>Hello world!\n</p>"
+            ]
