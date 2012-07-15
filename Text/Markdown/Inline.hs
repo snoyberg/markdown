@@ -93,7 +93,7 @@ inline =
         _ <- char '['
         content <- inlinesTill "]"
         _ <- char '('
-        url <- takeWhile1 (`notElem` " )")
+        url <- T.pack <$> many1 hrefChar
         mtitle <- (Just <$> title) <|> pure Nothing
         _ <- char ')'
         return $ InlineLink url mtitle content
@@ -102,12 +102,15 @@ inline =
         _ <- string "!["
         content <- takeWhile (/= ']')
         _ <- string "]("
-        url <- takeWhile1 (`notElem` " )")
+        url <- T.pack <$> many1 hrefChar
         mtitle <- (Just <$> title) <|> pure Nothing
         _ <- char ')'
         return $ InlineImage url mtitle content
 
-    title = space *> char '"' *> takeWhile1 (/= '"') <* char '"'
+    title = T.pack <$> (space *> char '"' *> many titleChar <* char '"')
+
+    titleChar :: Parser Char
+    titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')
 
     html = do
         c <- char '<'
@@ -154,3 +157,6 @@ inline =
             , t
             , T.singleton c
             ]
+
+hrefChar :: Parser Char
+hrefChar = (char '\\' *> anyChar) <|> satisfy (notInClass " )")
