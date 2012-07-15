@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Text.Markdown.Block
     ( Block (..)
     , ListType (..)
     , toBlocks
     ) where
 
+import Prelude
 import Data.Conduit
 import qualified Data.Conduit.Text as CT
 import qualified Data.Conduit.List as CL

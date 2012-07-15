@@ -8,13 +8,9 @@ import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown.Inline
 import Data.Text (Text)
-import Data.Attoparsec.Text
 
 check :: Text -> [Inline] -> Assertion
-check md ins =
-    case parseOnly inlineParser md of
-        Left e -> error e
-        Right x -> x @?= ins
+check md ins = toInline md @?= ins
 
 inlineSpecs :: Spec
 inlineSpecs = do
