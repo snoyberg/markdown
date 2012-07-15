@@ -58,7 +58,7 @@ inlinesTill end =
             go $ front . (x:))
 
 specials :: [Char]
-specials = "*_`\\[]!<"
+specials = "*_`\\[]!<&"
 
 inlineAny :: Parser Inline
 inlineAny =
@@ -76,6 +76,7 @@ inline =
     <|> link
     <|> image
     <|> html
+    <|> entity
   where
     text = InlineText <$> takeWhile1 (`notElem` specials)
 
@@ -122,3 +123,34 @@ inline =
                     , t2
                     , T.singleton c2
                     ]
+
+    entity =
+            rawent "&lt;"
+        <|> rawent "&gt;"
+        <|> rawent "&amp;"
+        <|> rawent "&quot;"
+        <|> rawent "&apos;"
+        <|> decEnt
+        <|> hexEnt
+
+    rawent t = InlineHtml <$> string t
+
+    decEnt = do
+        s <- string "&#"
+        t <- takeWhile1 $ \x -> ('0' <= x && x <= '9')
+        c <- char ';'
+        return $ InlineHtml $ T.concat
+            [ s
+            , t
+            , T.singleton c
+            ]
+
+    hexEnt = do
+        s <- string "&#x" <|> string "&#X"
+        t <- takeWhile1 $ \x -> ('0' <= x && x <= '9') || ('A' <= x && x <= 'F') || ('a' <= x && x <= 'f')
+        c <- char ';'
+        return $ InlineHtml $ T.concat
+            [ s
+            , t
+            , T.singleton c
+            ]
