@@ -2,6 +2,7 @@
 module Text.Markdown.Inline
     ( Inline (..)
     , inlineParser
+    , toInline
     ) where
 
 import Prelude hiding (takeWhile)
@@ -10,6 +11,9 @@ import qualified Data.Text as T
 import Data.Attoparsec.Text
 import Control.Applicative
 import Data.Monoid (Monoid, mappend)
+
+toInline :: Text -> [Inline]
+toInline = undefined
 
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
@@ -74,12 +78,12 @@ inline =
     escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` specials))
 
     link = do
-        char '['
+        _ <- char '['
         content <- inlinesTill "]"
-        char '('
+        _ <- char '('
         url <- takeWhile1 (`notElem` " )")
         mtitle <- (Just <$> title) <|> pure Nothing
-        char ')'
+        _ <- char ')'
         return $ InlineLink url mtitle content
 
     title = space *> char '"' *> takeWhile1 (/= '"') <* char '"'

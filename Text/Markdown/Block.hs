@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards #-}
 module Text.Markdown.Block
     ( Block (..)
     , ListType (..)
@@ -23,6 +24,14 @@ data Block inline
     | BlockQuote [Block inline]
     | BlockHtml Text
   deriving (Show, Eq)
+
+instance Functor Block where
+    fmap f (BlockPara i) = BlockPara (f i)
+    fmap f (BlockList lt (Left i)) = BlockList lt $ Left $ f i
+    fmap f (BlockList lt (Right bs)) = BlockList lt $ Right $ map (fmap f) bs
+    fmap _ (BlockCode a b) = BlockCode a b
+    fmap f (BlockQuote bs) = BlockQuote $ map (fmap f) bs
+    fmap _ (BlockHtml t) = BlockHtml t
 
 toBlocks :: Monad m => GInfConduit Text m (Block Text)
 toBlocks = mapOutput noCR CT.lines >+> toBlocksLines
@@ -68,22 +77,26 @@ start t
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ BlockPara $ T.unwords $ t : ls
 
+takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m Bool
 takeTill f =
     loop
   where
     loop = await >>= maybe (return False) (\x -> if f x then return True else yield x >> loop)
 
+listStart :: Text -> Maybe (ListType, Text)
 listStart t
     | Just t' <- T.stripPrefix "* " t = Just (Unordered, t')
     | Just t' <- stripNumber t, Just t'' <- stripSeparator t' = Just (Ordered, t'')
     | otherwise = Nothing
 
+stripNumber :: Text -> Maybe Text
 stripNumber x
     | T.null y = Nothing
     | otherwise = Just z
   where
     (y, z) = T.span isDigit x
 
+stripSeparator :: Text -> Maybe Text
 stripSeparator x =
     case T.uncons x of
         Nothing -> Nothing

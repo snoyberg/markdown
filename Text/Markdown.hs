@@ -33,6 +33,10 @@ import Data.List (intersperse)
 import Data.Char (isSpace, isAlpha)
 import Control.Monad.Trans.Resource (runExceptionT_)
 import Text.Blaze.Html.Renderer.Text (renderHtml)
+{- FIXME
+import Text.Markdown.Inline
+import Text.Markdown.Block
+-}
 
 data MarkdownSettings = MarkdownSettings
     { msXssProtect :: Bool

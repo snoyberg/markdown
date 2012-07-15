@@ -10,6 +10,9 @@ import Control.Monad (forM_)
 import qualified Filesystem.Path.CurrentOS as F
 import qualified Filesystem as F
 
+import Block
+import Inline
+
 check :: Text -> Text -> Assertion
 check html md = html @=? renderHtml (markdown def md)
 
@@ -22,6 +25,8 @@ main :: IO ()
 main = do
   examples <- getExamples
   hspec $ do
+    describe "block" blockSpecs
+    describe "inline" inlineSpecs
     describe "paragraphs" $ do
         it "simple"
             $ check "<p>Hello World!</p>" "Hello World!"
@@ -172,6 +177,7 @@ main = do
         it "should be escaped" $ check "<p>1 &lt; 2</p>" "1 < 2"
     describe "examples" $ sequence_ examples
 
+getExamples :: IO [Spec]
 getExamples = do
     files <- F.listDirectory "test/examples"
     mapM go $ filter (flip F.hasExtension "md") files

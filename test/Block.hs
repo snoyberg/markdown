@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+module Block
+    ( blockSpecs
+    ) where
 import Test.Hspec.Monadic
 import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
-import Text.Markdown.Inline
 import Data.Text (Text)
-import Text.Blaze.Renderer.Text (renderHtml)
-import Control.Monad (forM_)
-import Data.Attoparsec.Text
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Text.Markdown.Block
@@ -15,8 +14,8 @@ import Data.Functor.Identity (runIdentity)
 check :: Text -> [Block Text] -> Assertion
 check md blocks = runIdentity (yield md $$ toBlocks =$ CL.consume) @?= blocks
 
-main :: IO ()
-main = hspec $ do
+blockSpecs :: Spec
+blockSpecs = do
     describe "tilde code" $ do
         it "simple" $ check
             "~~~haskell\nfoo\n\nbar\n~~~"

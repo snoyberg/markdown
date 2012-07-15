@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+module Inline
+    ( inlineSpecs
+    ) where
+
 import Test.Hspec.Monadic
 import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown.Inline
 import Data.Text (Text)
-import Text.Blaze.Renderer.Text (renderHtml)
-import Control.Monad (forM_)
 import Data.Attoparsec.Text
 
 check :: Text -> [Inline] -> Assertion
@@ -14,8 +16,8 @@ check md ins =
         Left e -> error e
         Right x -> x @?= ins
 
-main :: IO ()
-main = hspecX $ do
+inlineSpecs :: Spec
+inlineSpecs = do
     describe "raw text" $ do
         it "simple"
             $ check "raw text" [InlineText "raw text"]
