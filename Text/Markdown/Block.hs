@@ -132,7 +132,7 @@ getIndented leader =
             mapM_ yield $ reverse blanks
             yield y
             go []
-        | otherwise = mapM_ leftover blanks >> leftover t
+        | otherwise = mapM_ leftover (t:blanks)
       where
         (x, y) = T.splitAt leader t
 
