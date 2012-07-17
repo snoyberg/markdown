@@ -93,7 +93,7 @@ inline refs =
     doubleCode = InlineCode . T.pack <$> (string "`` " *> manyTill anyChar (string " ``"))
     code = InlineCode <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
 
-    escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` specials))
+    escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` "\\`*_{}[]()#+-.!>"))
 
     takeBalancedBrackets =
         T.pack <$> go (0 :: Int)
