@@ -16,6 +16,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Functor.Identity (runIdentity)
 import Data.Char (isDigit)
+import Data.Maybe (isJust)
 
 data ListType = Ordered | Unordered
   deriving (Show, Eq)
@@ -56,29 +57,66 @@ toBlocks =
         j = 4 - (i `mod` 4)
     go i (c:cs) = c : go (i + 1) cs
 
-toBlocksLines :: Monad m => GLInfConduit Text m (Block Text)
-toBlocksLines = awaitForever start
+toBlocksLines :: Monad m => Conduit Text m (Block Text)
+toBlocksLines = awaitForever start =$= tightenLists
 
-start :: Monad m => Text -> GLConduit Text m (Block Text)
+tightenLists :: Monad m => GLInfConduit (Either Blank (Block Text)) m (Block Text)
+tightenLists =
+    go Nothing
+  where
+    go mTightList =
+        awaitE >>= either return go'
+      where
+        go' (Left Blank) = go mTightList
+        go' (Right (BlockList ltNew contents)) =
+            case mTightList of
+                Just (ltOld, isTight) | ltOld == ltNew -> do
+                    yield $ BlockList ltNew $ (if isTight then tighten else untighten) contents
+                    go mTightList
+                _ -> do
+                    isTight <- checkTight ltNew False
+                    yield $ BlockList ltNew $ (if isTight then tighten else untighten) contents
+                    go $ Just (ltNew, isTight)
+        go' (Right b) = yield b >> go Nothing
+
+    tighten (Right [BlockPara t]) = Left t
+    tighten (Right []) = Left T.empty
+    tighten x = x
+
+    untighten (Left t) = Right [BlockPara t]
+    untighten x = x
+
+    checkTight lt sawBlank = do
+        await >>= maybe (return $ not sawBlank) go'
+      where
+        go' (Left Blank) = checkTight lt True
+        go' b@(Right (BlockList ltNext _)) | ltNext == lt = do
+            leftover b
+            return $ not sawBlank
+        go' b = leftover b >> return False
+
+data Blank = Blank
+
+start :: Monad m => Text -> GLConduit Text m (Either Blank (Block Text))
 start t
-    | T.null $ T.strip t = return ()
+    | T.null $ T.strip t = yield $ Left Blank
     | Just lang <- T.stripPrefix "~~~" t = do
         (finished, ls) <- takeTill (== "~~~") >+> withUpstream CL.consume
-        if finished
-            then yield $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
-            else mapM_ leftover (reverse $ T.cons ' ' t : ls)
+        case finished of
+            Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
+            Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     | Just t' <- T.stripPrefix "> " t = do
         ls <- takeQuotes >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines =$ CL.consume
-        yield $ BlockQuote blocks
-    | Just (level, t') <- stripHeading t = yield $ BlockHeading level t'
+        yield $ Right $ BlockQuote blocks
+    | Just (level, t') <- stripHeading t = yield $ Right $ BlockHeading level t'
     | Just t' <- T.stripPrefix "    " t = do
         ls <- getIndented 4 >+> CL.consume
-        yield $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
-    | isRule t = yield BlockRule
+        yield $ Right $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
+    | isRule t = yield $ Right BlockRule
     | T.isPrefixOf "<" t = do
         ls <- takeTill (T.null . T.strip) >+> CL.consume
-        yield $ BlockHtml $ T.intercalate "\n" $ t : ls
+        yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
     | Just (ltype, t') <- listStart t = do
         let (spaces, t'') = T.span (== ' ') t'
         if T.length spaces >= 2
@@ -86,35 +124,42 @@ start t
                 let leader = T.length t - T.length t''
                 ls <- getIndented leader >+> CL.consume
                 let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
-                yield $ BlockList ltype $ Right blocks
-            else yield $ BlockList ltype $ Left t''
+                yield $ Right $ BlockList ltype $ Right blocks
+            else yield $ Right $ BlockList ltype $ Left t''
 
-    | Just (x, y) <- getReference t = yield $ BlockReference x y
+    | Just (x, y) <- getReference t = yield $ Right $ BlockReference x y
 
     | otherwise = do
         -- Check for underline headings
         t2 <- CL.peek
         case t2 >>= getUnderline of
             Nothing -> do
-                ls <- takeTill (T.null . T.strip) >+> CL.consume
-                yield $ BlockPara $ T.intercalate "\n" $ t : ls
+                let listStartIndent x =
+                        case listStart x of
+                            Just (_, y) -> T.take 2 y == "  "
+                            Nothing -> False
+                (mfinal, ls) <- takeTill (\x -> T.null (T.strip x) || listStartIndent x) >+> withUpstream CL.consume
+                maybe (return ()) leftover mfinal
+                yield $ Right $ BlockPara $ T.intercalate "\n" $ t : ls
             Just level -> do
                 CL.drop 1
-                yield $ BlockHeading level t
+                yield $ Right $ BlockHeading level t
 
-takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m Bool
+takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m (Maybe i)
 takeTill f =
     loop
   where
-    loop = await >>= maybe (return False) (\x -> if f x then return True else yield x >> loop)
+    loop = await >>= maybe (return Nothing) (\x -> if f x then return (Just x) else yield x >> loop)
 
 listStart :: Text -> Maybe (ListType, Text)
-listStart t
+listStart t0
     | Just t' <- T.stripPrefix "* " t = Just (Unordered, t')
     | Just t' <- T.stripPrefix "+ " t = Just (Unordered, t')
     | Just t' <- T.stripPrefix "- " t = Just (Unordered, t')
     | Just t' <- stripNumber t, Just t'' <- stripSeparator t' = Just (Ordered, t'')
     | otherwise = Nothing
+  where
+    t = T.stripStart t0
 
 stripNumber :: Text -> Maybe Text
 stripNumber x

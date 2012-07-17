@@ -28,8 +28,8 @@ blockSpecs = do
             [BlockPara " ~~~\nfoo", BlockPara "bar"]
     describe "list" $ do
         it "simple" $ check
-            "* foo\n*    bar"
-            [ BlockList Unordered (Left "foo")
+            "* foo\n\n*    bar\n\n"
+            [ BlockList Unordered (Right [BlockPara "foo"])
             , BlockList Unordered (Right [BlockPara "bar"])
             ]
         it "nested" $ check
@@ -41,12 +41,14 @@ blockSpecs = do
                 ])
             ]
         it "with blank" $ check
-            "*   foo\n\n    bar\n* baz"
+            "*   foo\n\n    bar\n\n* baz"
             [ BlockList Unordered $ Right
                 [ BlockPara "foo"
                 , BlockPara "bar"
                 ]
-            , BlockList Unordered $ Left "baz"
+            , BlockList Unordered $ Right
+                [ BlockPara "baz"
+                ]
             ]
     describe "blockquote" $ do
         it "simple" $ check
