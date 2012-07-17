@@ -28,6 +28,7 @@ data Block inline
     | BlockHtml Text
     | BlockRule
     | BlockHeading Int inline
+    | BlockReference Text Text
   deriving (Show, Eq)
 
 instance Functor Block where
@@ -39,6 +40,7 @@ instance Functor Block where
     fmap _ (BlockHtml t) = BlockHtml t
     fmap _ BlockRule = BlockRule
     fmap f (BlockHeading level i) = BlockHeading level (f i)
+    fmap _ (BlockReference x y) = BlockReference x y
 
 toBlocks :: Monad m => Conduit Text m (Block Text)
 toBlocks =
@@ -86,6 +88,8 @@ start t
                 let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
                 yield $ BlockList ltype $ Right blocks
             else yield $ BlockList ltype $ Left t''
+
+    | Just (x, y) <- getReference t = yield $ BlockReference x y
 
     | otherwise = do
         -- Check for underline headings
@@ -178,3 +182,10 @@ getUnderline t
     | T.all (== '=') t = Just 1
     | T.all (== '-') t = Just 2
     | otherwise = Nothing
+
+getReference :: Text -> Maybe (Text, Text)
+getReference a = do
+    b <- T.stripPrefix "[" $ T.dropWhile (== ' ') a
+    let (name, c) = T.break (== ']') b
+    d <- T.stripPrefix "]:" c
+    Just (name, T.strip d)

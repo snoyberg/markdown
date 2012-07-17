@@ -25,6 +25,8 @@ Library
                      , text
                      , data-default           >= 0.3
                      , xss-sanitize
+                     , containers
+  ghc-options:       -Wall
 
 test-suite test
     hs-source-dirs: test

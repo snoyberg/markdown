@@ -12,10 +12,13 @@ import qualified Data.Text as T
 import Data.Attoparsec.Text
 import Control.Applicative
 import Data.Monoid (Monoid, mappend)
+import qualified Data.Map as Map
 
-toInline :: Text -> [Inline]
-toInline t =
-    case parseOnly inlineParser t of
+type RefMap = Map.Map Text Text
+
+toInline :: RefMap -> Text -> [Inline]
+toInline refmap t =
+    case parseOnly (inlineParser refmap) t of
         Left s -> [InlineText $ T.pack s]
         Right is -> is
 
@@ -31,8 +34,8 @@ data Inline = InlineText Text
             | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
     deriving (Show, Eq)
 
-inlineParser :: Parser [Inline]
-inlineParser = combine <$> many inlineAny
+inlineParser :: RefMap -> Parser [Inline]
+inlineParser = fmap combine . many . inlineAny
 
 combine :: [Inline] -> [Inline]
 combine [] = []
@@ -48,27 +51,17 @@ combine (InlineLink u t c:rest) = InlineLink u t (combine c) : combine rest
 combine (InlineImage u t c:rest) = InlineImage u t c : combine rest
 combine (InlineHtml t:rest) = InlineHtml t : combine rest
 
-inlinesTill :: Text -> Parser [Inline]
-inlinesTill end =
-    go id
-  where
-    go front =
-        (string end *> pure (front []))
-        <|> (do
-            x <- inline
-            go $ front . (x:))
-
 specials :: [Char]
 specials = "*_`\\[]!<&"
 
-inlineAny :: Parser Inline
-inlineAny =
-    inline <|> special
+inlineAny :: RefMap -> Parser Inline
+inlineAny refs =
+    inline refs <|> special
   where
     special = InlineText . T.singleton <$> satisfy (`elem` specials)
 
-inline :: Parser Inline
-inline =
+inline :: RefMap -> Parser Inline
+inline refs =
     text
     <|> escape
     <|> paired "**" InlineBold <|> paired "__" InlineBold
@@ -80,6 +73,16 @@ inline =
     <|> html
     <|> entity
   where
+    inlinesTill :: Text -> Parser [Inline]
+    inlinesTill end =
+        go id
+      where
+        go front =
+            (string end *> pure (front []))
+            <|> (do
+                x <- inlineAny refs
+                go $ front . (x:))
+
     text = InlineText <$> takeWhile1 (`notElem` specials)
 
     paired t wrap = wrap <$> do
@@ -92,17 +95,19 @@ inline =
 
     escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` specials))
 
-    link = do
-        _ <- char '['
-        content <- inlinesTill "]"
-        _ <- char '('
-        url <- parseUrl
-        mtitle <- (Just <$> title) <|> pure Nothing
-        skipSpace
-        _ <- char ')'
-        return $ InlineLink (fixUrl url) mtitle content
+    takeBalancedBrackets =
+        T.pack <$> go (0 :: Int)
+      where
+        go i = do
+            c <- anyChar
+            case c of
+                '[' -> (c:) <$> go (i + 1)
+                ']'
+                    | i == 0 -> return []
+                    | otherwise -> (c:) <$> go (i - 1)
+                _ -> (c:) <$> go i
 
-    parseUrl = fixUrl . T.pack <$> parseUrl' 0
+    parseUrl = fixUrl . T.pack <$> parseUrl' (0 :: Int)
 
     parseUrl' level
         | level > 0 = do
@@ -122,14 +127,34 @@ inline =
                 then (c:) <$> parseUrl' 1
                 else (c:) <$> parseUrl' 0) <|> return []
 
-    image = do
-        _ <- string "!["
-        content <- takeWhile (/= ']')
-        _ <- string "]("
+    parseUrlTitle defRef = parseUrlTitleInline <|> parseUrlTitleRef defRef
+
+    parseUrlTitleInside = do
         url <- parseUrl
         mtitle <- (Just <$> title) <|> pure Nothing
         skipSpace
-        _ <- char ')'
+        return (url, mtitle)
+
+    parseUrlTitleInline = char '(' *> parseUrlTitleInside <* char ')'
+
+    parseUrlTitleRef defRef = do
+        ref' <- (skipSpace *> char '[' *> takeWhile (/= ']') <* char ']') <|> return ""
+        let ref = if T.null ref' then defRef else ref'
+        case Map.lookup (T.unwords $ T.words ref) refs of
+            Nothing -> fail "ref not found"
+            Just t -> either fail return $ parseOnly parseUrlTitleInside t
+
+    link = do
+        _ <- char '['
+        rawContent <- takeBalancedBrackets
+        content <- either fail return $ parseOnly (inlineParser refs) rawContent
+        (url, mtitle) <- parseUrlTitle rawContent
+        return $ InlineLink url mtitle content
+
+    image = do
+        _ <- string "!["
+        content <- takeBalancedBrackets
+        (url, mtitle) <- parseUrlTitle content
         return $ InlineImage url mtitle content
 
     fixUrl t

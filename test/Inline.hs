@@ -8,9 +8,10 @@ import Test.Hspec.HUnit ()
 import Test.HUnit hiding (Test)
 import Text.Markdown.Inline
 import Data.Text (Text)
+import Data.Monoid (mempty)
 
 check :: Text -> [Inline] -> Assertion
-check md ins = toInline md @?= ins
+check md ins = toInline mempty md @?= ins
 
 inlineSpecs :: Spec
 inlineSpecs = do

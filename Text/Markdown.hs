@@ -26,6 +26,7 @@ import Data.Functor.Identity (runIdentity)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 import Text.HTML.SanitizeXSS (sanitizeBalance)
+import qualified Data.Map as Map
 
 -- | A settings type providing various configuration options.
 --
@@ -57,12 +58,28 @@ instance ToMarkup Markdown where
 -- >>> renderHtml $ markdown def { msXssProtect = False } "<script>alert('evil')</script>"
 -- "<script>alert('evil')</script>"
 markdown :: MarkdownSettings -> TL.Text -> Html
-markdown ms tl =
-    runIdentity
-  $ CL.sourceList (TL.toChunks tl)
- $$ mapOutput (fmap (toHtmlI ms . toInline)) toBlocks
- =$ toHtmlB ms
- =$ CL.fold mappend mempty
+markdown ms tl = runIdentity
+     $ CL.sourceList blocksH
+    $= toHtmlB ms
+    $$ CL.fold mappend mempty
+  where
+    fixBlock :: Block Text -> Block Html
+    fixBlock = fmap $ toHtmlI ms . toInline refs
+
+    blocksH :: [Block Html]
+    blocksH = map fixBlock blocks
+
+    blocks :: [Block Text]
+    blocks = runIdentity
+           $ CL.sourceList (TL.toChunks tl)
+          $$ toBlocks
+          =$ CL.consume
+
+    refs =
+        Map.unions $ map toRef blocks
+      where
+        toRef (BlockReference x y) = Map.singleton x y
+        toRef _ = Map.empty
 
 data MState = NoState | InList ListType
 
@@ -110,6 +127,7 @@ toHtmlB ms =
        wrap 4 = H.h4
        wrap 5 = H.h5
        wrap _ = H.h6
+    go BlockReference{} = return ()
 
     blocksToHtml bs = runIdentity $ mapM_ yield bs $$ toHtmlB ms =$ CL.fold mappend mempty
 
