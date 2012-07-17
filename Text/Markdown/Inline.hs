@@ -73,9 +73,10 @@ inline =
     <|> escape
     <|> paired "**" InlineBold <|> paired "__" InlineBold
     <|> paired "*" InlineItalic <|> paired "_" InlineItalic
-    <|> code
+    <|> doubleCode <|> code
     <|> link
     <|> image
+    <|> autoLink
     <|> html
     <|> entity
   where
@@ -86,6 +87,7 @@ inline =
         is <- inlinesTill t
         if null is then fail "wrapped around something missing" else return is
 
+    doubleCode = InlineCode . T.pack <$> (string "`` " *> manyTill anyChar (string " ``"))
     code = InlineCode <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
 
     escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` specials))
@@ -94,21 +96,55 @@ inline =
         _ <- char '['
         content <- inlinesTill "]"
         _ <- char '('
-        url <- T.pack <$> many1 hrefChar
+        url <- parseUrl
         mtitle <- (Just <$> title) <|> pure Nothing
+        skipSpace
         _ <- char ')'
-        return $ InlineLink url mtitle content
+        return $ InlineLink (fixUrl url) mtitle content
+
+    parseUrl = fixUrl . T.pack <$> parseUrl' 0
+
+    parseUrl' level
+        | level > 0 = do
+            c <- anyChar
+            let level'
+                    | c == ')' = level - 1
+                    | otherwise = level
+            c' <-
+                if c == '\\'
+                    then anyChar
+                    else return c
+            cs <- parseUrl' level'
+            return $ c' : cs
+        | otherwise = (do
+            c <- hrefChar
+            if c == '('
+                then (c:) <$> parseUrl' 1
+                else (c:) <$> parseUrl' 0) <|> return []
 
     image = do
         _ <- string "!["
         content <- takeWhile (/= ']')
         _ <- string "]("
-        url <- T.pack <$> many1 hrefChar
+        url <- parseUrl
         mtitle <- (Just <$> title) <|> pure Nothing
+        skipSpace
         _ <- char ')'
         return $ InlineImage url mtitle content
 
-    title = T.pack <$> (space *> char '"' *> many titleChar <* char '"')
+    fixUrl t
+        | T.length t > 2 && T.head t == '<' && T.last t == '>' = T.init $ T.tail t
+        | otherwise = t
+
+    autoLink = do
+        _ <- char '<'
+        a <- string "http:" <|> string "https:"
+        b <- takeWhile1 (/= '>')
+        _ <- char '>'
+        let url = a `T.append` b
+        return $ InlineLink url Nothing [InlineText url]
+
+    title = T.pack <$> (space *> skipSpace *> char '"' *> many titleChar <* char '"')
 
     titleChar :: Parser Char
     titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')

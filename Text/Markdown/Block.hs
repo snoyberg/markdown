@@ -41,21 +41,25 @@ instance Functor Block where
     fmap f (BlockHeading level i) = BlockHeading level (f i)
 
 toBlocks :: Monad m => Conduit Text m (Block Text)
-toBlocks = mapOutput noCR CT.lines =$= toBlocksLines
+toBlocks =
+    mapOutput fixWS CT.lines =$= toBlocksLines
+  where
+    fixWS = T.pack . go 0 . T.unpack
+
+    go _ [] = []
+    go i ('\r':cs) = go i cs
+    go i ('\t':cs) =
+        (replicate j ' ') ++ go (i + j) cs
+      where
+        j = 4 - (i `mod` 4)
+    go i (c:cs) = c : go (i + 1) cs
 
 toBlocksLines :: Monad m => GLInfConduit Text m (Block Text)
 toBlocksLines = awaitForever start
 
-noCR :: Text -> Text
-noCR t
-    | T.null t = t
-    | T.last t == '\r' = T.init t
-    | otherwise = t
-
 start :: Monad m => Text -> GLConduit Text m (Block Text)
 start t
     | T.null $ T.strip t = return ()
-    | isRule t = yield BlockRule
     | Just lang <- T.stripPrefix "~~~" t = do
         (finished, ls) <- takeTill (== "~~~") >+> withUpstream CL.consume
         if finished
@@ -69,6 +73,7 @@ start t
     | Just t' <- T.stripPrefix "    " t = do
         ls <- getIndented 4 >+> CL.consume
         yield $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
+    | isRule t = yield BlockRule
     | T.isPrefixOf "<" t = do
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ BlockHtml $ T.intercalate "\n" $ t : ls
@@ -102,6 +107,8 @@ takeTill f =
 listStart :: Text -> Maybe (ListType, Text)
 listStart t
     | Just t' <- T.stripPrefix "* " t = Just (Unordered, t')
+    | Just t' <- T.stripPrefix "+ " t = Just (Unordered, t')
+    | Just t' <- T.stripPrefix "- " t = Just (Unordered, t')
     | Just t' <- stripNumber t, Just t'' <- stripSeparator t' = Just (Ordered, t'')
     | otherwise = Nothing
 
@@ -146,11 +153,17 @@ takeQuotes =
         | otherwise = leftover t
 
 isRule :: Text -> Bool
-isRule "* * *" = True
-isRule "***" = True
-isRule "*****" = True
-isRule "- - -" = True
-isRule t = T.length (T.takeWhile (== '-') t) >= 5
+isRule =
+    go . T.strip
+  where
+    go "* * *" = True
+    go "***" = True
+    go "*****" = True
+    go "- - -" = True
+    go "---" = True
+    go "___" = True
+    go "_ _ _" = True
+    go t = T.length (T.takeWhile (== '-') t) >= 5
 
 stripHeading :: Text -> Maybe (Int, Text)
 stripHeading t

@@ -5,6 +5,7 @@ import Test.HUnit hiding (Test)
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
 
@@ -19,6 +20,12 @@ check html md = html @=? renderHtml (markdown def md)
 
 check' :: Text -> Text -> Assertion
 check' html md = html @=? renderHtml (markdown def { msXssProtect = False } md)
+
+checkNoNL :: Text -> Text -> Assertion
+checkNoNL html md =
+    f html @=? f (renderHtml $ markdown def { msXssProtect = False } md)
+  where
+    f = TL.filter (/= '\n')
 
 -- FIXME add quickcheck: all input is valid
 
@@ -200,5 +207,4 @@ getGruber = do
     go fp = do
         input <- F.readTextFile fp
         output <- F.readTextFile $ F.replaceExtension fp "html"
-        let noNL = fromStrict . T.filter (/= '\n')
-        return $ it (F.encodeString $ F.basename fp) $ check (noNL $ T.strip output) (noNL input)
+        return $ it (F.encodeString $ F.basename fp) $ checkNoNL (fromStrict $ T.strip output) (fromStrict input)
