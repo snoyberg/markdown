@@ -25,6 +25,7 @@ check' html md = html @=? renderHtml (markdown def { msXssProtect = False } md)
 main :: IO ()
 main = do
   examples <- getExamples
+  gruber <- getGruber
   hspec $ do
     describe "block" blockSpecs
     describe "inline" inlineSpecs
@@ -179,6 +180,7 @@ main = do
         it "block xss" $ check "alert('evil')" "<script>alert('evil')</script>"
         it "should be escaped" $ check "<p>1 &lt; 2</p>" "1 < 2"
     describe "examples" $ sequence_ examples
+    describe "John Gruber's test suite" $ sequence_ gruber
 
 getExamples :: IO [Spec]
 getExamples = do
@@ -189,3 +191,14 @@ getExamples = do
         input <- F.readTextFile fp
         output <- F.readTextFile $ F.replaceExtension fp "html"
         return $ it (F.encodeString $ F.basename fp) $ check (fromStrict $ T.strip output) (fromStrict input)
+
+getGruber :: IO [Spec]
+getGruber = do
+    files <- F.listDirectory "test/Tests"
+    mapM go $ filter (flip F.hasExtension "text") files
+  where
+    go fp = do
+        input <- F.readTextFile fp
+        output <- F.readTextFile $ F.replaceExtension fp "html"
+        let noNL = fromStrict . T.filter (/= '\n')
+        return $ it (F.encodeString $ F.basename fp) $ check (noNL $ T.strip output) (noNL input)
