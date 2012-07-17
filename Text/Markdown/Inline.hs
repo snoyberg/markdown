@@ -129,20 +129,33 @@ inline refs =
 
     parseUrlTitle defRef = parseUrlTitleInline <|> parseUrlTitleRef defRef
 
-    parseUrlTitleInside = do
+    parseUrlTitleInside endTitle = do
         url <- parseUrl
-        mtitle <- (Just <$> title) <|> pure Nothing
-        skipSpace
+        mtitle <- (Just <$> title) <|> (skipSpace >> endTitle >> pure Nothing)
         return (url, mtitle)
+      where
+        title = do
+            space
+            skipSpace
+            _ <- char '"'
+            t <- T.stripEnd . T.pack <$> go
+            return $
+                if not (T.null t) && T.last t == '"'
+                    then T.init t
+                    else t
+          where
+            go =  (char '\\' *> anyChar >>= \c -> (c:) <$> go)
+              <|> (endTitle *> return [])
+              <|> (anyChar >>= \c -> (c:) <$> go)
 
-    parseUrlTitleInline = char '(' *> parseUrlTitleInside <* char ')'
+    parseUrlTitleInline = char '(' *> parseUrlTitleInside (char ')')
 
     parseUrlTitleRef defRef = do
         ref' <- (skipSpace *> char '[' *> takeWhile (/= ']') <* char ']') <|> return ""
         let ref = if T.null ref' then defRef else ref'
         case Map.lookup (T.unwords $ T.words ref) refs of
             Nothing -> fail "ref not found"
-            Just t -> either fail return $ parseOnly parseUrlTitleInside t
+            Just t -> either fail return $ parseOnly (parseUrlTitleInside endOfInput) t
 
     link = do
         _ <- char '['
@@ -168,11 +181,6 @@ inline refs =
         _ <- char '>'
         let url = a `T.append` b
         return $ InlineLink url Nothing [InlineText url]
-
-    title = T.pack <$> (space *> skipSpace *> char '"' *> many titleChar <* char '"')
-
-    titleChar :: Parser Char
-    titleChar = (char '\\' *> anyChar) <|> satisfy (/= '"')
 
     html = do
         c <- char '<'
