@@ -1,6 +1,1 @@
 language: haskell
-
-install:
-    - cabal update
-    - cabal install
-    - cabal install hspec system-fileio system-filepath
