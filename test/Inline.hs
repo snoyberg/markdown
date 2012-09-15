@@ -3,15 +3,13 @@ module Inline
     ( inlineSpecs
     ) where
 
-import Test.Hspec.Monadic
-import Test.Hspec.HUnit ()
-import Test.HUnit hiding (Test)
+import Test.Hspec
 import Text.Markdown.Inline
 import Data.Text (Text)
 import Data.Monoid (mempty)
 
-check :: Text -> [Inline] -> Assertion
-check md ins = toInline mempty md @?= ins
+check :: Text -> [Inline] -> Expectation
+check md ins = toInline mempty md `shouldBe` ins
 
 inlineSpecs :: Spec
 inlineSpecs = do
