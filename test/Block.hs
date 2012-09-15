@@ -3,15 +3,14 @@ module Block
     ( blockSpecs
     ) where
 import Test.Hspec
-import Test.HUnit hiding (Test)
 import Data.Text (Text)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Text.Markdown.Block
 import Data.Functor.Identity (runIdentity)
 
-check :: Text -> [Block Text] -> Assertion
-check md blocks = runIdentity (yield md $$ toBlocks =$ CL.consume) @?= blocks
+check :: Text -> [Block Text] -> Expectation
+check md blocks = runIdentity (yield md $$ toBlocks =$ CL.consume) `shouldBe` blocks
 
 blockSpecs :: Spec
 blockSpecs = do
