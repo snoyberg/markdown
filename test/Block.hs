@@ -2,8 +2,7 @@
 module Block
     ( blockSpecs
     ) where
-import Test.Hspec.Monadic
-import Test.Hspec.HUnit ()
+import Test.Hspec
 import Test.HUnit hiding (Test)
 import Data.Text (Text)
 import Data.Conduit

@@ -3,8 +3,7 @@ module Inline
     ( inlineSpecs
     ) where
 
-import Test.Hspec.Monadic
-import Test.Hspec.HUnit ()
+import Test.Hspec
 import Test.HUnit hiding (Test)
 import Text.Markdown.Inline
 import Data.Text (Text)

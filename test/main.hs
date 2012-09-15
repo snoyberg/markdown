@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Test.Hspec.Monadic
-import Test.Hspec.HUnit ()
+import Test.Hspec
 import Test.HUnit hiding (Test)
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
