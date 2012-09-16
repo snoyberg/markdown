@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Test.Hspec.Monadic
-import Test.Hspec.HUnit ()
-import Test.HUnit hiding (Test)
+import Test.Hspec
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
 import qualified Data.Text as T
@@ -15,15 +13,15 @@ import qualified Filesystem as F
 import Block
 import Inline
 
-check :: Text -> Text -> Assertion
-check html md = html @=? renderHtml (markdown def md)
+check :: Text -> Text -> Expectation
+check html md = renderHtml (markdown def md) `shouldBe` html
 
-check' :: Text -> Text -> Assertion
-check' html md = html @=? renderHtml (markdown def { msXssProtect = False } md)
+check' :: Text -> Text -> Expectation
+check' html md = renderHtml (markdown def { msXssProtect = False } md) `shouldBe` html
 
-checkNoNL :: Text -> Text -> Assertion
+checkNoNL :: Text -> Text -> Expectation
 checkNoNL html md =
-    f html @=? f (renderHtml $ markdown def { msXssProtect = False } md)
+    f (renderHtml $ markdown def { msXssProtect = False } md) `shouldBe` f html
   where
     f = TL.filter (/= '\n')
 
