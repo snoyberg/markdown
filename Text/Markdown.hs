@@ -7,7 +7,7 @@ module Text.Markdown
     , msXssProtect
       -- * Newtype
     , Markdown (..)
-      -- * Convenience re-exports.
+      -- * Convenience re-exports
     , def
     ) where
 
