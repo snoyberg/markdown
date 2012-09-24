@@ -16,7 +16,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Functor.Identity (runIdentity)
 import Data.Char (isDigit)
-import Data.Maybe (isJust)
 
 data ListType = Ordered | Unordered
   deriving (Show, Eq)

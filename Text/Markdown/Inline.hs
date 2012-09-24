@@ -135,7 +135,7 @@ inline refs =
         return (url, mtitle)
       where
         title = do
-            space
+            _ <- space
             skipSpace
             _ <- char '"'
             t <- T.stripEnd . T.pack <$> go
