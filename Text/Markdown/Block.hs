@@ -104,6 +104,11 @@ start t
         case finished of
             Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
+    | Just lang <- T.stripPrefix "```" t = do
+        (finished, ls) <- takeTill (== "```") >+> withUpstream CL.consume
+        case finished of
+            Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
+            Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     | Just t' <- T.stripPrefix "> " t = do
         ls <- takeQuotes >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines =$ CL.consume
@@ -113,18 +118,15 @@ start t
         ls <- getIndented 4 >+> CL.consume
         yield $ Right $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
     | isRule t = yield $ Right BlockRule
-    | T.isPrefixOf "<" t = do
+    | isHtmlStart t = do
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
     | Just (ltype, t') <- listStart t = do
         let (spaces, t'') = T.span (== ' ') t'
-        if T.length spaces >= 2
-            then do
-                let leader = T.length t - T.length t''
-                ls <- getIndented leader >+> CL.consume
-                let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
-                yield $ Right $ BlockList ltype $ Right blocks
-            else yield $ Right $ BlockList ltype $ Left t''
+        let leader = T.length t - T.length t''
+        ls <- getIndented leader >+> CL.consume
+        let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
+        yield $ Right $ BlockList ltype $ Right blocks
 
     | Just (x, y) <- getReference t = yield $ Right $ BlockReference x y
 
@@ -143,6 +145,25 @@ start t
             Just level -> do
                 CL.drop 1
                 yield $ Right $ BlockHeading level t
+
+isHtmlStart :: T.Text -> Bool
+isHtmlStart t =
+    case T.stripPrefix "<" t of
+        Nothing -> False
+        Just t' ->
+            let (name, rest) = T.break (\c -> c `elem` " >/") t'
+             in T.all isValidTagName name &&
+                not (T.null name) &&
+                (not ("/" `T.isPrefixOf` rest) || ("/>" `T.isPrefixOf` rest))
+  where
+    isValidTagName :: Char -> Bool
+    isValidTagName c =
+        ('A' <= c && c <= 'Z') ||
+        ('a' <= c && c <= 'z') ||
+        ('0' <= c && c <= '9') ||
+        (c == '-') ||
+        (c == '_') ||
+        (c == '!')
 
 takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m (Maybe i)
 takeTill f =
