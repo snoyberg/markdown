@@ -122,7 +122,7 @@ start t
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
     | Just (ltype, t') <- listStart t = do
-        let (spaces, t'') = T.span (== ' ') t'
+        let t'' = T.dropWhile (== ' ') t'
         let leader = T.length t - T.length t''
         ls <- getIndented leader >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
