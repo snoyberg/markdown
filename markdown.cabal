@@ -1,5 +1,5 @@
 Name:                markdown
-Version:             0.1.1
+Version:             0.1.1.1
 Synopsis:            Convert Markdown to HTML, with XSS protection
 Description:         This library leverages existing high-performance libraries (attoparsec, blaze-html, text, and conduit), and should integrate well with existing codebases.
 Homepage:            https://github.com/snoyberg/markdown
@@ -9,7 +9,10 @@ Author:              Michael Snoyman
 Maintainer:          michael@snoyman.com
 Category:            Web
 Build-type:          Simple
-Extra-source-files:  test/examples/*.html, test/examples/*.md
+Extra-source-files:  test/examples/*.html
+                   , test/examples/*.md
+                   , test/Tests/*.html
+                   , test/Tests/*.text
 Cabal-version:       >=1.8
 
 Library
