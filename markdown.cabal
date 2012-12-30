@@ -49,6 +49,7 @@ test-suite test
                  , system-filepath
                  , transformers
                  , conduit
+                 , containers
 
 source-repository head
   type:     git
