@@ -275,7 +275,8 @@ takeQuotes :: Monad m => GLConduit Text m Text
 takeQuotes =
     await >>= maybe (return ()) go
   where
+    go "" = return ()
     go ">" = yield "" >> takeQuotes
     go t
         | Just t' <- T.stripPrefix "> " t = yield t' >> takeQuotes
-        | otherwise = leftover t
+        | otherwise = yield t >> takeQuotes
