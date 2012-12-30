@@ -97,55 +97,113 @@ tightenLists =
 
 data Blank = Blank
 
+data LineType = LineList ListType Text
+              | LineCode Text
+              | LineFenced Text Text -- ^ terminator, language
+              | LineBlockQuote Text
+              | LineHeading Int Text
+              | LineBlank
+              | LineText Text
+              | LineRule
+              | LineHtml Text
+              | LineReference Text Text -- ^ name, destination
+    deriving (Show, Eq)
+
+lineType :: Text -> LineType
+lineType t
+    | T.null $ T.strip t = LineBlank
+    | Just (term, lang) <- getFenced ["~~~", "```"] t = LineFenced term lang
+    | Just t' <- T.stripPrefix "> " t = LineBlockQuote t'
+    | Just (level, t') <- stripHeading t = LineHeading level t'
+    | Just t' <- T.stripPrefix "    " t = LineCode t'
+    | isRule t = LineRule
+    | isHtmlStart t = LineHtml t
+    | Just (ltype, t') <- listStart t = LineList ltype t'
+    | Just (name, dest) <- getReference t = LineReference name dest
+    | otherwise = LineText t
+  where
+    getFenced [] _ = Nothing
+    getFenced (x:xs) t
+        | Just lang <- T.stripPrefix x t = Just (x, lang)
+        | otherwise = getFenced xs t
+
+    isRule :: Text -> Bool
+    isRule =
+        go . T.strip
+      where
+        go "* * *" = True
+        go "***" = True
+        go "*****" = True
+        go "- - -" = True
+        go "---" = True
+        go "___" = True
+        go "_ _ _" = True
+        go t = T.length (T.takeWhile (== '-') t) >= 5
+
+    stripHeading :: Text -> Maybe (Int, Text)
+    stripHeading t
+        | T.null x = Nothing
+        | otherwise = Just (T.length x, T.strip $ T.dropWhileEnd (== '#') y)
+      where
+        (x, y) = T.span (== '#') t
+
+    getReference :: Text -> Maybe (Text, Text)
+    getReference a = do
+        b <- T.stripPrefix "[" $ T.dropWhile (== ' ') a
+        let (name, c) = T.break (== ']') b
+        d <- T.stripPrefix "]:" c
+        Just (name, T.strip d)
+
 start :: Monad m => Text -> GLConduit Text m (Either Blank (Block Text))
-start t
-    | T.null $ T.strip t = yield $ Left Blank
-    | Just lang <- T.stripPrefix "~~~" t = do
-        (finished, ls) <- takeTill (== "~~~") >+> withUpstream CL.consume
+start t =
+    go $ lineType t
+  where
+    go LineBlank = yield $ Left Blank
+    go (LineFenced term lang) = do
+        (finished, ls) <- takeTill (== term) >+> withUpstream CL.consume
         case finished of
             Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
-    | Just lang <- T.stripPrefix "```" t = do
-        (finished, ls) <- takeTill (== "```") >+> withUpstream CL.consume
-        case finished of
-            Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
-            Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
-    | Just t' <- T.stripPrefix "> " t = do
+    go (LineBlockQuote t') = do
         ls <- takeQuotes >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines =$ CL.consume
         yield $ Right $ BlockQuote blocks
-    | Just (level, t') <- stripHeading t = yield $ Right $ BlockHeading level t'
-    | Just t' <- T.stripPrefix "    " t = do
+    go (LineHeading level t') = yield $ Right $ BlockHeading level t'
+    go (LineCode t') = do
         ls <- getIndented 4 >+> CL.consume
         yield $ Right $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
-    | isRule t = yield $ Right BlockRule
-    | isHtmlStart t = do
+    go LineRule = yield $ Right BlockRule
+    go (LineHtml t') = do
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
-    | Just (ltype, t') <- listStart t = do
+    go (LineList ltype t') = do
         let t'' = T.dropWhile (== ' ') t'
         let leader = T.length t - T.length t''
         ls <- getIndented leader >+> CL.consume
         let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
         yield $ Right $ BlockList ltype $ Right blocks
-
-    | Just (x, y) <- getReference t = yield $ Right $ BlockReference x y
-
-    | otherwise = do
+    go (LineReference x y) = yield $ Right $ BlockReference x y
+    go (LineText t') = do
         -- Check for underline headings
+        let getUnderline :: Text -> Maybe Int
+            getUnderline t
+                | T.length t < 2 = Nothing
+                | T.all (== '=') t = Just 1
+                | T.all (== '-') t = Just 2
+                | otherwise = Nothing
         t2 <- CL.peek
         case t2 >>= getUnderline of
+            Just level -> do
+                CL.drop 1
+                yield $ Right $ BlockHeading level t
             Nothing -> do
                 let listStartIndent x =
                         case listStart x of
                             Just (_, y) -> T.take 2 y == "  "
                             Nothing -> False
-                (mfinal, ls) <- takeTill (\x -> T.null (T.strip x) || listStartIndent x) >+> withUpstream CL.consume
+                (mfinal, ls) <- takeTill (\x -> lineType x == LineBlank || listStartIndent x) >+> withUpstream CL.consume
                 maybe (return ()) leftover mfinal
                 yield $ Right $ BlockPara $ T.intercalate "\n" $ t : ls
-            Just level -> do
-                CL.drop 1
-                yield $ Right $ BlockHeading level t
 
 isHtmlStart :: T.Text -> Bool
 isHtmlStart t =
@@ -221,37 +279,3 @@ takeQuotes =
     go t
         | Just t' <- T.stripPrefix "> " t = yield t' >> takeQuotes
         | otherwise = leftover t
-
-isRule :: Text -> Bool
-isRule =
-    go . T.strip
-  where
-    go "* * *" = True
-    go "***" = True
-    go "*****" = True
-    go "- - -" = True
-    go "---" = True
-    go "___" = True
-    go "_ _ _" = True
-    go t = T.length (T.takeWhile (== '-') t) >= 5
-
-stripHeading :: Text -> Maybe (Int, Text)
-stripHeading t
-    | T.null x = Nothing
-    | otherwise = Just (T.length x, T.strip $ T.dropWhileEnd (== '#') y)
-  where
-    (x, y) = T.span (== '#') t
-
-getUnderline :: Text -> Maybe Int
-getUnderline t
-    | T.length t < 2 = Nothing
-    | T.all (== '=') t = Just 1
-    | T.all (== '-') t = Just 2
-    | otherwise = Nothing
-
-getReference :: Text -> Maybe (Text, Text)
-getReference a = do
-    b <- T.stripPrefix "[" $ T.dropWhile (== ' ') a
-    let (name, c) = T.break (== ']') b
-    d <- T.stripPrefix "]:" c
-    Just (name, T.strip d)
