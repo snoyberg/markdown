@@ -30,6 +30,7 @@ data Block inline
     | BlockRule
     | BlockHeading Int inline
     | BlockReference Text Text
+    | BlockPlainText inline
   deriving (Show, Eq)
 
 instance Functor Block where
@@ -42,6 +43,7 @@ instance Functor Block where
     fmap _ BlockRule = BlockRule
     fmap f (BlockHeading level i) = BlockHeading level (f i)
     fmap _ (BlockReference x y) = BlockReference x y
+    fmap f (BlockPlainText x) = BlockPlainText (f x)
 
 toBlocks :: Monad m => Conduit Text m (Block Text)
 toBlocks =
@@ -123,9 +125,9 @@ lineType t
     | otherwise = LineText t
   where
     getFenced [] _ = Nothing
-    getFenced (x:xs) t
-        | Just lang <- T.stripPrefix x t = Just (x, lang)
-        | otherwise = getFenced xs t
+    getFenced (x:xs) t'
+        | Just lang <- T.stripPrefix x t' = Just (x, lang)
+        | otherwise = getFenced xs t'
 
     isRule :: Text -> Bool
     isRule =
@@ -138,14 +140,14 @@ lineType t
         go "---" = True
         go "___" = True
         go "_ _ _" = True
-        go t = T.length (T.takeWhile (== '-') t) >= 5
+        go t' = T.length (T.takeWhile (== '-') t') >= 5
 
     stripHeading :: Text -> Maybe (Int, Text)
-    stripHeading t
+    stripHeading t'
         | T.null x = Nothing
         | otherwise = Just (T.length x, T.strip $ T.dropWhileEnd (== '#') y)
       where
-        (x, y) = T.span (== '#') t
+        (x, y) = T.span (== '#') t'
 
     getReference :: Text -> Maybe (Text, Text)
     getReference a = do
@@ -175,9 +177,8 @@ start t =
     go LineRule = yield $ Right BlockRule
     go (LineHtml t') = do
         ls <- takeTill (T.null . T.strip) >+> CL.consume
-        yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
+        yield $ Right $ BlockHtml $ T.intercalate "\n" $ t' : ls
     go (LineList ltype t') = do
-        -- check for lazy lists: next line is plain text and not indented
         t2 <- CL.peek
         case fmap lineType t2 of
             -- If the next line is a non-indented text line, then we have a
@@ -191,10 +192,22 @@ start t =
                             Nothing -> return $ front []
                             Just y ->
                                 case lineType y of
-                                    LineText y -> loop (front . (y:))
+                                    LineText z -> loop (front . (z:))
                                     _ -> leftover y >> return (front [])
                 ls <- loop (\rest -> T.dropWhile (== ' ') t' : t2' : rest)
                 yield $ Right $ BlockList ltype $ Right [BlockPara $ T.intercalate "\n" ls]
+            -- If the next line is an indented list, then we have a sublist. I
+            -- disagree with this interpretation of Markdown, but it's the way
+            -- that Github implements things, so we will too.
+            _ | Just t2' <- t2
+              , Just t2'' <- T.stripPrefix "    " t2'
+              , LineList _ltype' _t2''' <- lineType t2'' -> do
+                ls <- getIndented 4 >+> CL.consume
+                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines =$ CL.consume
+                let addPlainText
+                        | T.null $ T.strip t' = id
+                        | otherwise = (BlockPlainText (T.strip t'):)
+                yield $ Right $ BlockList ltype $ Right $ addPlainText blocks
             _ -> do
                 let t'' = T.dropWhile (== ' ') t'
                 let leader = T.length t - T.length t''
@@ -205,16 +218,16 @@ start t =
     go (LineText t') = do
         -- Check for underline headings
         let getUnderline :: Text -> Maybe Int
-            getUnderline t
-                | T.length t < 2 = Nothing
-                | T.all (== '=') t = Just 1
-                | T.all (== '-') t = Just 2
+            getUnderline s
+                | T.length s < 2 = Nothing
+                | T.all (== '=') s = Just 1
+                | T.all (== '-') s = Just 2
                 | otherwise = Nothing
         t2 <- CL.peek
         case t2 >>= getUnderline of
             Just level -> do
                 CL.drop 1
-                yield $ Right $ BlockHeading level t
+                yield $ Right $ BlockHeading level t'
             Nothing -> do
                 let listStartIndent x =
                         case listStart x of
@@ -222,7 +235,7 @@ start t =
                             Nothing -> False
                 (mfinal, ls) <- takeTill (\x -> lineType x == LineBlank || listStartIndent x) >+> withUpstream CL.consume
                 maybe (return ()) leftover mfinal
-                yield $ Right $ BlockPara $ T.intercalate "\n" $ t : ls
+                yield $ Right $ BlockPara $ T.intercalate "\n" $ t' : ls
 
 isHtmlStart :: T.Text -> Bool
 isHtmlStart t =

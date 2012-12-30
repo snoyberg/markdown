@@ -115,6 +115,7 @@ toHtmlB ms =
     getState state@(InList _) _ = closeState state >> return NoState
 
     go (BlockPara h) = H.p h
+    go (BlockPlainText h) = h
     go (BlockList _ (Left h)) = H.li h
     go (BlockList _ (Right bs)) = H.li $ blocksToHtml bs
     go (BlockHtml t) = escape $ (if msXssProtect ms then sanitizeBalance else id) t

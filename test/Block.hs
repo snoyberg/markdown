@@ -31,7 +31,7 @@ blockSpecs = do
             , BlockList Unordered (Right [BlockPara "bar"])
             ]
         it "nested" $ check
-            "* foo\n*    1. bar\n     2. baz"
+            "* foo\n* \n    1. bar\n    2. baz"
             [ BlockList Unordered (Left "foo")
             , BlockList Unordered (Right
                 [ BlockList Ordered $ Left "bar"
