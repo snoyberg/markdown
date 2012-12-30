@@ -6,11 +6,12 @@ import Test.Hspec
 import Data.Text (Text)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
+import Text.Markdown (def)
 import Text.Markdown.Block
 import Data.Functor.Identity (runIdentity)
 
 check :: Text -> [Block Text] -> Expectation
-check md blocks = runIdentity (yield md $$ toBlocks =$ CL.consume) `shouldBe` blocks
+check md blocks = runIdentity (yield md $$ toBlocks def =$ CL.consume) `shouldBe` blocks
 
 blockSpecs :: Spec
 blockSpecs = do

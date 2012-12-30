@@ -19,6 +19,7 @@ Library
   Exposed-modules:     Text.Markdown
                        Text.Markdown.Block
                        Text.Markdown.Inline
+  other-modules:       Text.Markdown.Types
   Build-depends:       base                   >= 4       && < 5
                      , blaze-html             >= 0.4
                      , attoparsec             >= 0.10

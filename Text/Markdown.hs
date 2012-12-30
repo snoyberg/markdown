@@ -7,6 +7,7 @@ module Text.Markdown
       -- * Settings
     , MarkdownSettings
     , msXssProtect
+    , msStandaloneHtml
       -- * Newtype
     , Markdown (..)
       -- * Convenience re-exports
@@ -15,6 +16,7 @@ module Text.Markdown
 
 import Text.Markdown.Inline
 import Text.Markdown.Block
+import Text.Markdown.Types
 import Prelude hiding (sequence, takeWhile)
 import Data.Default (Default (..))
 import Data.Text (Text)
@@ -30,20 +32,6 @@ import qualified Text.Blaze.Html5.Attributes as HA
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import qualified Data.Map as Map
 import Data.String (IsString)
-
--- | A settings type providing various configuration options.
---
--- See <http://www.yesodweb.com/book/settings-types> for more information on
--- settings types. In general, you can use @def@.
-data MarkdownSettings = MarkdownSettings
-    { msXssProtect :: Bool
-      -- ^ Whether to automatically apply XSS protection to embedded HTML. Default: @True@.
-    }
-
-instance Default MarkdownSettings where
-    def = MarkdownSettings
-        { msXssProtect = True
-        }
 
 -- | A newtype wrapper providing a @ToHtml@ instance.
 newtype Markdown = Markdown TL.Text
@@ -76,7 +64,7 @@ markdown ms tl = runIdentity
     blocks :: [Block Text]
     blocks = runIdentity
            $ CL.sourceList (TL.toChunks tl)
-          $$ toBlocks
+          $$ toBlocks ms
           =$ CL.consume
 
     refs =

@@ -17,6 +17,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Functor.Identity (runIdentity)
 import Data.Char (isDigit)
+import Text.Markdown.Types
+import qualified Data.Set as Set
 
 data ListType = Ordered | Unordered
   deriving (Show, Eq)
@@ -45,9 +47,9 @@ instance Functor Block where
     fmap _ (BlockReference x y) = BlockReference x y
     fmap f (BlockPlainText x) = BlockPlainText (f x)
 
-toBlocks :: Monad m => Conduit Text m (Block Text)
-toBlocks =
-    mapOutput fixWS CT.lines =$= toBlocksLines
+toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
+toBlocks ms =
+    mapOutput fixWS CT.lines =$= toBlocksLines ms
   where
     fixWS = T.pack . go 0 . T.unpack
 
@@ -59,8 +61,8 @@ toBlocks =
         j = 4 - (i `mod` 4)
     go i (c:cs) = c : go (i + 1) cs
 
-toBlocksLines :: Monad m => Conduit Text m (Block Text)
-toBlocksLines = awaitForever start =$= tightenLists
+toBlocksLines :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
+toBlocksLines ms = awaitForever (start ms) =$= tightenLists
 
 tightenLists :: Monad m => GLInfConduit (Either Blank (Block Text)) m (Block Text)
 tightenLists =
@@ -156,8 +158,8 @@ lineType t
         d <- T.stripPrefix "]:" c
         Just (name, T.strip d)
 
-start :: Monad m => Text -> GLConduit Text m (Either Blank (Block Text))
-start t =
+start :: Monad m => MarkdownSettings -> Text -> GLConduit Text m (Either Blank (Block Text))
+start ms t =
     go $ lineType t
   where
     go LineBlank = yield $ Left Blank
@@ -168,7 +170,7 @@ start t =
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     go (LineBlockQuote t') = do
         ls <- takeQuotes >+> CL.consume
-        let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines =$ CL.consume
+        let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines ms =$ CL.consume
         yield $ Right $ BlockQuote blocks
     go (LineHeading level t') = yield $ Right $ BlockHeading level t'
     go (LineCode t') = do
@@ -176,8 +178,11 @@ start t =
         yield $ Right $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
     go LineRule = yield $ Right BlockRule
     go (LineHtml t') = do
-        ls <- takeTill (T.null . T.strip) >+> CL.consume
-        yield $ Right $ BlockHtml $ T.intercalate "\n" $ t' : ls
+        if t' `Set.member` msStandaloneHtml ms
+            then yield $ Right $ BlockHtml t'
+            else do
+                ls <- takeTill (T.null . T.strip) >+> CL.consume
+                yield $ Right $ BlockHtml $ T.intercalate "\n" $ t' : ls
     go (LineList ltype t') = do
         t2 <- CL.peek
         case fmap lineType t2 of
@@ -203,7 +208,7 @@ start t =
               , Just t2'' <- T.stripPrefix "    " t2'
               , LineList _ltype' _t2''' <- lineType t2'' -> do
                 ls <- getIndented 4 >+> CL.consume
-                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines =$ CL.consume
+                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
                 let addPlainText
                         | T.null $ T.strip t' = id
                         | otherwise = (BlockPlainText (T.strip t'):)
@@ -212,7 +217,7 @@ start t =
                 let t'' = T.dropWhile (== ' ') t'
                 let leader = T.length t - T.length t''
                 ls <- getIndented leader >+> CL.consume
-                let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
+                let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines ms =$ CL.consume
                 yield $ Right $ BlockList ltype $ Right blocks
     go (LineReference x y) = yield $ Right $ BlockReference x y
     go (LineText t') = do
@@ -242,7 +247,7 @@ isHtmlStart t =
     case T.stripPrefix "<" t of
         Nothing -> False
         Just t' ->
-            let (name, rest) = T.break (\c -> c `elem` " >/") t'
+            let (name, rest) = T.break (\c -> c `elem` " >") t'
              in T.all isValidTagName name &&
                 not (T.null name) &&
                 (not ("/" `T.isPrefixOf` rest) || ("/>" `T.isPrefixOf` rest))
@@ -254,6 +259,7 @@ isHtmlStart t =
         ('0' <= c && c <= '9') ||
         (c == '-') ||
         (c == '_') ||
+        (c == '/') ||
         (c == '!')
 
 takeTill :: Monad m => (i -> Bool) -> Pipe l i i u m (Maybe i)
