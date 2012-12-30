@@ -177,11 +177,30 @@ start t =
         ls <- takeTill (T.null . T.strip) >+> CL.consume
         yield $ Right $ BlockHtml $ T.intercalate "\n" $ t : ls
     go (LineList ltype t') = do
-        let t'' = T.dropWhile (== ' ') t'
-        let leader = T.length t - T.length t''
-        ls <- getIndented leader >+> CL.consume
-        let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
-        yield $ Right $ BlockList ltype $ Right blocks
+        -- check for lazy lists: next line is plain text and not indented
+        t2 <- CL.peek
+        case fmap lineType t2 of
+            -- If the next line is a non-indented text line, then we have a
+            -- lazy list.
+            Just (LineText t2') | T.null (T.takeWhile (== ' ') t2') -> do
+                CL.drop 1
+                -- Get all of the non-indented lines.
+                let loop front = do
+                        x <- await
+                        case x of
+                            Nothing -> return $ front []
+                            Just y ->
+                                case lineType y of
+                                    LineText y -> loop (front . (y:))
+                                    _ -> leftover y >> return (front [])
+                ls <- loop (\rest -> T.dropWhile (== ' ') t' : t2' : rest)
+                yield $ Right $ BlockList ltype $ Right [BlockPara $ T.intercalate "\n" ls]
+            _ -> do
+                let t'' = T.dropWhile (== ' ') t'
+                let leader = T.length t - T.length t''
+                ls <- getIndented leader >+> CL.consume
+                let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines =$ CL.consume
+                yield $ Right $ BlockList ltype $ Right blocks
     go (LineReference x y) = yield $ Right $ BlockReference x y
     go (LineText t') = do
         -- Check for underline headings
