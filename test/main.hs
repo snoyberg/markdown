@@ -7,6 +7,7 @@ import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 import qualified Filesystem.Path.CurrentOS as F
 import qualified Filesystem as F
@@ -192,6 +193,16 @@ main = do
             def { msStandaloneHtml = Set.fromList ["<hidden>", "</hidden>"], msXssProtect = False }
             "<hidden><pre><code class=\"haskell\">foo\nbar</code></pre></hidden>"
             "<hidden>\n```haskell\nfoo\nbar\n```\n</hidden>\n"
+    describe "fencing" $ do
+        it "custom fencing" $ checkSet
+            def
+                { msFencedHandlers = Map.union
+                    (htmlFencedHandler "@@@" (\clazz -> T.concat ["<article class=\"", clazz, "\">"]) (const "</article>"))
+                    (msFencedHandlers def)
+                , msXssProtect = False
+                }
+            "<article class=\"someclass\"><p>foo</p><blockquote><p>bar</p></blockquote></article>"
+            "@@@ someclass\nfoo\n\n> bar\n@@@"
     describe "examples" $ sequence_ examples
     describe "John Gruber's test suite" $ sequence_ gruber
 

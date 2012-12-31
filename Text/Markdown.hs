@@ -8,8 +8,12 @@ module Text.Markdown
     , MarkdownSettings
     , msXssProtect
     , msStandaloneHtml
+    , msFencedHandlers
       -- * Newtype
     , Markdown (..)
+      -- * Helpers
+    , codeFencedHandler
+    , htmlFencedHandler
       -- * Convenience re-exports
     , def
     ) where

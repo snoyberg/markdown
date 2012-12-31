@@ -19,33 +19,7 @@ import Data.Functor.Identity (runIdentity)
 import Data.Char (isDigit)
 import Text.Markdown.Types
 import qualified Data.Set as Set
-
-data ListType = Ordered | Unordered
-  deriving (Show, Eq)
-
-data Block inline
-    = BlockPara inline
-    | BlockList ListType (Either inline [Block inline])
-    | BlockCode (Maybe Text) Text
-    | BlockQuote [Block inline]
-    | BlockHtml Text
-    | BlockRule
-    | BlockHeading Int inline
-    | BlockReference Text Text
-    | BlockPlainText inline
-  deriving (Show, Eq)
-
-instance Functor Block where
-    fmap f (BlockPara i) = BlockPara (f i)
-    fmap f (BlockList lt (Left i)) = BlockList lt $ Left $ f i
-    fmap f (BlockList lt (Right bs)) = BlockList lt $ Right $ map (fmap f) bs
-    fmap _ (BlockCode a b) = BlockCode a b
-    fmap f (BlockQuote bs) = BlockQuote $ map (fmap f) bs
-    fmap _ (BlockHtml t) = BlockHtml t
-    fmap _ BlockRule = BlockRule
-    fmap f (BlockHeading level i) = BlockHeading level (f i)
-    fmap _ (BlockReference x y) = BlockReference x y
-    fmap f (BlockPlainText x) = BlockPlainText (f x)
+import qualified Data.Map as Map
 
 toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
 toBlocks ms =
@@ -103,7 +77,7 @@ data Blank = Blank
 
 data LineType = LineList ListType Text
               | LineCode Text
-              | LineFenced Text Text -- ^ terminator, language
+              | LineFenced Text FencedHandler -- ^ terminator, language
               | LineBlockQuote Text
               | LineHeading Int Text
               | LineBlank
@@ -111,12 +85,11 @@ data LineType = LineList ListType Text
               | LineRule
               | LineHtml Text
               | LineReference Text Text -- ^ name, destination
-    deriving (Show, Eq)
 
-lineType :: Text -> LineType
-lineType t
+lineType :: MarkdownSettings -> Text -> LineType
+lineType ms t
     | T.null $ T.strip t = LineBlank
-    | Just (term, lang) <- getFenced ["~~~", "```"] t = LineFenced term lang
+    | Just (term, fh) <- getFenced (Map.toList $ msFencedHandlers ms) t = LineFenced term fh
     | Just t' <- T.stripPrefix "> " t = LineBlockQuote t'
     | Just (level, t') <- stripHeading t = LineHeading level t'
     | Just t' <- T.stripPrefix "    " t = LineCode t'
@@ -127,8 +100,8 @@ lineType t
     | otherwise = LineText t
   where
     getFenced [] _ = Nothing
-    getFenced (x:xs) t'
-        | Just lang <- T.stripPrefix x t' = Just (x, lang)
+    getFenced ((x, fh):xs) t'
+        | Just rest <- T.stripPrefix x t' = Just (x, fh $ T.strip rest)
         | otherwise = getFenced xs t'
 
     isRule :: Text -> Bool
@@ -160,13 +133,20 @@ lineType t
 
 start :: Monad m => MarkdownSettings -> Text -> GLConduit Text m (Either Blank (Block Text))
 start ms t =
-    go $ lineType t
+    go $ lineType ms t
   where
     go LineBlank = yield $ Left Blank
-    go (LineFenced term lang) = do
+    go (LineFenced term fh) = do
         (finished, ls) <- takeTill (== term) >+> withUpstream CL.consume
         case finished of
-            Just _ -> yield $ Right $ BlockCode (if T.null lang then Nothing else Just lang) $ T.intercalate "\n" ls
+            Just _ -> do
+                let block =
+                        case fh of
+                            FHRaw fh' -> [fh' $ T.intercalate "\n" ls]
+                            FHParsed fh' ->
+                                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
+                                 in fh' blocks
+                mapM_ (yield . Right) block
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     go (LineBlockQuote t') = do
         ls <- takeQuotes >+> CL.consume
@@ -185,7 +165,7 @@ start ms t =
                 yield $ Right $ BlockHtml $ T.intercalate "\n" $ t' : ls
     go (LineList ltype t') = do
         t2 <- CL.peek
-        case fmap lineType t2 of
+        case fmap (lineType ms) t2 of
             -- If the next line is a non-indented text line, then we have a
             -- lazy list.
             Just (LineText t2') | T.null (T.takeWhile (== ' ') t2') -> do
@@ -196,7 +176,7 @@ start ms t =
                         case x of
                             Nothing -> return $ front []
                             Just y ->
-                                case lineType y of
+                                case lineType ms y of
                                     LineText z -> loop (front . (z:))
                                     _ -> leftover y >> return (front [])
                 ls <- loop (\rest -> T.dropWhile (== ' ') t' : t2' : rest)
@@ -206,7 +186,7 @@ start ms t =
             -- that Github implements things, so we will too.
             _ | Just t2' <- t2
               , Just t2'' <- T.stripPrefix "    " t2'
-              , LineList _ltype' _t2''' <- lineType t2'' -> do
+              , LineList _ltype' _t2''' <- lineType ms t2'' -> do
                 ls <- getIndented 4 >+> CL.consume
                 let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
                 let addPlainText
@@ -238,7 +218,9 @@ start ms t =
                         case listStart x of
                             Just (_, y) -> T.take 2 y == "  "
                             Nothing -> False
-                (mfinal, ls) <- takeTill (\x -> lineType x == LineBlank || listStartIndent x) >+> withUpstream CL.consume
+                    isLineBlank LineBlank = True
+                    isLineBlank _ = False
+                (mfinal, ls) <- takeTill (\x -> isLineBlank (lineType ms x) || listStartIndent x) >+> withUpstream CL.consume
                 maybe (return ()) leftover mfinal
                 yield $ Right $ BlockPara $ T.intercalate "\n" $ t' : ls
 
