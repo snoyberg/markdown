@@ -28,7 +28,7 @@ Library
                      , conduit                >= 0.5.2.1 && < 0.6
                      , text
                      , data-default           >= 0.3
-                     , xss-sanitize
+                     , xss-sanitize           >= 0.3.3
                      , containers
   ghc-options:       -Wall
 

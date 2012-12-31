@@ -90,7 +90,7 @@ main = do
 
         let close2 = "<div>foo\nbar\nbaz\n\nparagraph"
         it "autoclose 2"
-            $ check "<div>foo\nbar\nbaz</div><p>paragraph</p>" close2
+            $ check "<div>foo\nbar\nbaz<p>paragraph</p></div>" close2
     describe "inline code" $ do
         it "simple"
             $ check "<p>foo <code>bar</code> baz</p>" "foo `bar` baz"
@@ -199,7 +199,6 @@ main = do
                 { msFencedHandlers = Map.union
                     (htmlFencedHandler "@@@" (\clazz -> T.concat ["<article class=\"", clazz, "\">"]) (const "</article>"))
                     (msFencedHandlers def)
-                , msXssProtect = False
                 }
             "<article class=\"someclass\"><p>foo</p><blockquote><p>bar</p></blockquote></article>"
             "@@@ someclass\nfoo\n\n> bar\n@@@"

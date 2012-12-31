@@ -55,11 +55,16 @@ instance ToMarkup Markdown where
 -- >>> renderHtml $ markdown def { msXssProtect = False } "<script>alert('evil')</script>"
 -- "<script>alert('evil')</script>"
 markdown :: MarkdownSettings -> TL.Text -> Html
-markdown ms tl = runIdentity
+markdown ms tl =
+       sanitize
+     $ runIdentity
      $ CL.sourceList blocksH
     $= toHtmlB ms
     $$ CL.fold mappend mempty
   where
+    sanitize
+        | msXssProtect ms = preEscapedToMarkup . sanitizeBalance . TL.toStrict . renderHtml
+        | otherwise = id
     fixBlock :: Block Text -> Block Html
     fixBlock = fmap $ toHtmlI ms . toInline refs
 
@@ -111,7 +116,7 @@ toHtmlB ms =
     go (BlockPlainText h) = h
     go (BlockList _ (Left h)) = H.li h
     go (BlockList _ (Right bs)) = H.li $ blocksToHtml bs
-    go (BlockHtml t) = escape $ (if msXssProtect ms then sanitizeBalance else id) t
+    go (BlockHtml t) = escape t
     go (BlockCode Nothing t) = H.pre $ H.code $ toMarkup t
     go (BlockCode (Just lang) t) = H.pre $ H.code H.! HA.class_ (H.toValue lang) $ toMarkup t
     go (BlockQuote bs) = H.blockquote $ blocksToHtml bs
