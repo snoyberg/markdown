@@ -22,10 +22,40 @@ data MarkdownSettings = MarkdownSettings
       --
       -- Since: 0.1.2
     , msFencedHandlers :: Map Text (Text -> FencedHandler)
+      -- ^ Handlers for the special \"fenced\" format. This is most commonly
+      -- used for fenced code, e.g.:
+      --
+      -- > ```haskell
+      -- > main = putStrLn "Hello"
+      -- > ```
+      --
+      -- This is an extension of Markdown, but a fairly commonly used one.
+      --
+      -- This setting allows you to create new kinds of fencing. Fencing goes
+      -- into two categories: parsed and raw. Code fencing would be in the raw
+      -- category, where the contents are not treated as Markdown. Parsed will
+      -- treat the contents as Markdown and allow you to perform some kind of
+      -- modifcation to it.
+      --
+      -- For example, to create a new @\@\@\@@ fencing which wraps up the
+      -- contents in an @article@ tag, you could use:
+      --
+      -- > def { msFencedHandlers = htmlFencedHandler "@@@" (const "<article>") (const "</article")
+      -- >              `Map.union` msFencedHandlers def
+      -- >     }
+      --
+      -- Default: code fencing for @```@ and @~~~@.
+      --
+      -- Since: 0.1.2
     }
 
-data FencedHandler = FHRaw (Text -> Block Text)
+-- | See 'msFencedHandlers.
+--
+-- Since 0.1.2
+data FencedHandler = FHRaw (Text -> [Block Text])
+                     -- ^ Wrap up the given raw content.
                    | FHParsed ([Block Text] -> [Block Text])
+                     -- ^ Wrap up the given parsed content.
 
 instance Default MarkdownSettings where
     def = MarkdownSettings
@@ -34,11 +64,25 @@ instance Default MarkdownSettings where
         , msFencedHandlers = codeFencedHandler "```" `mappend` codeFencedHandler "~~~"
         }
 
-codeFencedHandler :: Text -> Map Text (Text -> FencedHandler)
+-- | Helper for creating a 'FHRaw'.
+--
+-- Since 0.1.2
+codeFencedHandler :: Text -- ^ Delimiter
+                  -> Map Text (Text -> FencedHandler)
 codeFencedHandler key = singleton key $ \lang -> FHRaw $
-    BlockCode $ if T.null lang then Nothing else Just lang
+    return . BlockCode (if T.null lang then Nothing else Just lang)
 
-htmlFencedHandler :: Text -- ^ fence string
+-- | Helper for creating a 'FHParsed'.
+--
+-- Note that the start and end parameters take a @Text@ parameter; this is the
+-- text following the delimiter. For example, with the markdown:
+--
+-- > @@@ foo
+--
+-- @foo@ would be passed to start and end.
+--
+-- Since 0.1.2
+htmlFencedHandler :: Text -- ^ Delimiter
                   -> (Text -> Text) -- ^ start HTML
                   -> (Text -> Text) -- ^ end HTML
                   -> Map Text (Text -> FencedHandler)

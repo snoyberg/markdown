@@ -142,10 +142,8 @@ start ms t =
             Just _ -> do
                 let block =
                         case fh of
-                            FHRaw fh' -> [fh' $ T.intercalate "\n" ls]
-                            FHParsed fh' ->
-                                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
-                                 in fh' blocks
+                            FHRaw fh' -> fh' $ T.intercalate "\n" ls
+                            FHParsed fh' -> fh' $ runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
                 mapM_ (yield . Right) block
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     go (LineBlockQuote t') = do

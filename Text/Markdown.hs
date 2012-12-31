@@ -11,7 +11,8 @@ module Text.Markdown
     , msFencedHandlers
       -- * Newtype
     , Markdown (..)
-      -- * Helpers
+      -- * Fenced handlers
+    , FencedHandler (..)
     , codeFencedHandler
     , htmlFencedHandler
       -- * Convenience re-exports
