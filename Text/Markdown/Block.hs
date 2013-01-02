@@ -216,9 +216,10 @@ start ms t =
                         case listStart x of
                             Just (_, y) -> T.take 2 y == "  "
                             Nothing -> False
-                    isLineBlank LineBlank = True
-                    isLineBlank _ = False
-                (mfinal, ls) <- takeTill (\x -> isLineBlank (lineType ms x) || listStartIndent x) >+> withUpstream CL.consume
+                    isNonPara LineBlank = True
+                    isNonPara LineFenced{} = True
+                    isNonPara _ = False
+                (mfinal, ls) <- takeTill (\x -> isNonPara (lineType ms x) || listStartIndent x) >+> withUpstream CL.consume
                 maybe (return ()) leftover mfinal
                 yield $ Right $ BlockPara $ T.intercalate "\n" $ t' : ls
 
