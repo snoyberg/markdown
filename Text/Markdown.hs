@@ -85,12 +85,12 @@ markdown ms tl =
 
 data MState = NoState | InList ListType
 
-toHtmlB :: Monad m => MarkdownSettings -> GInfConduit (Block Html) m Html
+toHtmlB :: Monad m => MarkdownSettings -> Conduit (Block Html) m Html
 toHtmlB ms =
     loop NoState
   where
-    loop state = awaitE >>= either
-        (\e -> closeState state >> return e)
+    loop state = await >>= maybe
+        (closeState state)
         (\x -> do
             state' <- getState state x
             yield $ go x
