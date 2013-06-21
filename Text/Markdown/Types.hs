@@ -7,6 +7,9 @@ import Data.Default (Default (def))
 import Data.Set (Set, empty)
 import Data.Map (Map, singleton)
 import Data.Monoid (mappend)
+import Text.Blaze.Html (Html)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as HA
 
 -- | A settings type providing various configuration options.
 --
@@ -47,6 +50,20 @@ data MarkdownSettings = MarkdownSettings
       -- Default: code fencing for @```@ and @~~~@.
       --
       -- Since: 0.1.2
+    , msBlockCodeRender :: Maybe Text  -- ^ The language of this block, or Nothing if none is specified.
+                        -> (Text,Html) -- ^ The unrendered and rendered block body, respectively.
+                        -> Html
+      -- ^ A rendering function through which code blocks are passed. This is useful
+      -- if you want to add, for example, syntax highlighting.
+      --
+      -- > ```haskell
+      -- > main = putStrLn "Hello"
+      -- > ```
+      --
+      -- will produce <pre><code class="haskell">main = putStrLn "Hello"</code></pre>
+      -- by default.
+      --
+      -- Since: 0.1.2.1
     }
 
 -- | See 'msFencedHandlers.
@@ -62,6 +79,10 @@ instance Default MarkdownSettings where
         { msXssProtect = True
         , msStandaloneHtml = empty
         , msFencedHandlers = codeFencedHandler "```" `mappend` codeFencedHandler "~~~"
+        , msBlockCodeRender =
+            \lang (_,rendered) -> case lang of
+                                       Just l -> H.pre $ H.code H.! HA.class_ (H.toValue l) $ rendered
+                                       Nothing -> H.pre $ H.code $ rendered
         }
 
 -- | Helper for creating a 'FHRaw'.

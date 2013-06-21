@@ -9,6 +9,7 @@ module Text.Markdown
     , msXssProtect
     , msStandaloneHtml
     , msFencedHandlers
+    , msBlockCodeRender
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
@@ -19,6 +20,7 @@ module Text.Markdown
     , def
     ) where
 
+import Control.Arrow ((&&&))
 import Text.Markdown.Inline
 import Text.Markdown.Block
 import Text.Markdown.Types
@@ -117,8 +119,7 @@ toHtmlB ms =
     go (BlockList _ (Left h)) = H.li h
     go (BlockList _ (Right bs)) = H.li $ blocksToHtml bs
     go (BlockHtml t) = escape t
-    go (BlockCode Nothing t) = H.pre $ H.code $ toMarkup t
-    go (BlockCode (Just lang) t) = H.pre $ H.code H.! HA.class_ (H.toValue lang) $ toMarkup t
+    go (BlockCode a b) = msBlockCodeRender ms a (id &&& toMarkup $ b)
     go (BlockQuote bs) = H.blockquote $ blocksToHtml bs
     go BlockRule = H.hr
     go (BlockHeading level h) =
