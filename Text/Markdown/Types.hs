@@ -50,18 +50,19 @@ data MarkdownSettings = MarkdownSettings
       -- Default: code fencing for @```@ and @~~~@.
       --
       -- Since: 0.1.2
-    , msBlockCodeRender :: Maybe Text  -- ^ The language of this block, or Nothing if none is specified.
-                        -> (Text,Html) -- ^ The unrendered and rendered block body, respectively.
-                        -> Html
-      -- ^ A rendering function through which code blocks are passed. This is useful
-      -- if you want to add, for example, syntax highlighting.
+    , msBlockCodeRender :: Maybe Text -> (Text,Html) -> Html
+      -- ^ A rendering function through which code blocks are passed.
       --
-      -- > ```haskell
-      -- > main = putStrLn "Hello"
-      -- > ```
+      -- The arguments are the block's language, if any, and the tuple
+      -- @(unrendered content, rendered content)@. For example, if you wanted to pass
+      -- code blocks in your markdown text through a highlighter like @highlighting-kate@,
+      -- you might do something like:
       --
-      -- will produce <pre><code class="haskell">main = putStrLn "Hello"</code></pre>
-      -- by default.
+      -- >>> :set -XOverloadedStrings
+      -- >>> let renderer lang (src,_) = formatHtmlBlock defaultFormatOpts $ highlightAs (maybe "text" unpack lang) $ unpack src
+      -- >>> let md = markdown def { msBlockCodeRender = renderer } "``` haskell\nmain = putStrLn \"Hello world!\"\n```"
+      -- >>> putStrLn $ renderHtml md
+      -- <pre class="sourceCode"><code class="sourceCode">main <span class="fu">=</span> <span class="fu">putStrLn</span> <span class="st">&quot;Hello world!&quot;</span></code></pre>
       --
       -- Since: 0.1.2.1
     }
