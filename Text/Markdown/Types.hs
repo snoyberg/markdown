@@ -50,7 +50,7 @@ data MarkdownSettings = MarkdownSettings
       -- Default: code fencing for @```@ and @~~~@.
       --
       -- Since: 0.1.2
-    , msBlockCodeRender :: Maybe Text -> (Text,Html) -> Html
+    , msBlockCodeRenderer :: Maybe Text -> (Text,Html) -> Html
       -- ^ A rendering function through which code blocks are passed.
       --
       -- The arguments are the block's language, if any, and the tuple
@@ -60,7 +60,7 @@ data MarkdownSettings = MarkdownSettings
       --
       -- >>> :set -XOverloadedStrings
       -- >>> let renderer lang (src,_) = formatHtmlBlock defaultFormatOpts $ highlightAs (maybe "text" unpack lang) $ unpack src
-      -- >>> let md = markdown def { msBlockCodeRender = renderer } "``` haskell\nmain = putStrLn \"Hello world!\"\n```"
+      -- >>> let md = markdown def { msBlockCodeRenderer = renderer } "``` haskell\nmain = putStrLn \"Hello world!\"\n```"
       -- >>> putStrLn $ renderHtml md
       -- <pre class="sourceCode"><code class="sourceCode">main <span class="fu">=</span> <span class="fu">putStrLn</span> <span class="st">&quot;Hello world!&quot;</span></code></pre>
       --
@@ -80,7 +80,7 @@ instance Default MarkdownSettings where
         { msXssProtect = True
         , msStandaloneHtml = empty
         , msFencedHandlers = codeFencedHandler "```" `mappend` codeFencedHandler "~~~"
-        , msBlockCodeRender =
+        , msBlockCodeRenderer =
             \lang (_,rendered) -> case lang of
                                        Just l -> H.pre $ H.code H.! HA.class_ (H.toValue l) $ rendered
                                        Nothing -> H.pre $ H.code $ rendered

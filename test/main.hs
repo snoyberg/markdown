@@ -103,7 +103,7 @@ main = do
                 "    foo\n     bar\n    baz"
         it "custom renderer"
             $ checkSet
-                def { msBlockCodeRender = (\_ (u,_) -> figure (toHtml u)) }
+                def { msBlockCodeRenderer = (\_ (u,_) -> figure (toHtml u)) }
                 "<figure>foo\n bar\nbaz</figure>"
                 "```haskell\nfoo\n bar\nbaz\n```"
     describe "escaping" $ do
