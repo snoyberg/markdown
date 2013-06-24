@@ -7,6 +7,9 @@ import Data.Default (Default (def))
 import Data.Set (Set, empty)
 import Data.Map (Map, singleton)
 import Data.Monoid (mappend)
+import Text.Blaze.Html (Html)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as HA
 
 -- | A settings type providing various configuration options.
 --
@@ -47,6 +50,21 @@ data MarkdownSettings = MarkdownSettings
       -- Default: code fencing for @```@ and @~~~@.
       --
       -- Since: 0.1.2
+    , msBlockCodeRenderer :: Maybe Text -> (Text,Html) -> Html
+      -- ^ A rendering function through which code blocks are passed.
+      --
+      -- The arguments are the block's language, if any, and the tuple
+      -- @(unrendered content, rendered content)@. For example, if you wanted to pass
+      -- code blocks in your markdown text through a highlighter like @highlighting-kate@,
+      -- you might do something like:
+      --
+      -- >>> :set -XOverloadedStrings
+      -- >>> let renderer lang (src,_) = formatHtmlBlock defaultFormatOpts $ highlightAs (maybe "text" unpack lang) $ unpack src
+      -- >>> let md = markdown def { msBlockCodeRenderer = renderer } "``` haskell\nmain = putStrLn \"Hello world!\"\n```"
+      -- >>> putStrLn $ renderHtml md
+      -- <pre class="sourceCode"><code class="sourceCode">main <span class="fu">=</span> <span class="fu">putStrLn</span> <span class="st">&quot;Hello world!&quot;</span></code></pre>
+      --
+      -- Since: 0.1.2.1
     }
 
 -- | See 'msFencedHandlers.
@@ -62,6 +80,10 @@ instance Default MarkdownSettings where
         { msXssProtect = True
         , msStandaloneHtml = empty
         , msFencedHandlers = codeFencedHandler "```" `mappend` codeFencedHandler "~~~"
+        , msBlockCodeRenderer =
+            \lang (_,rendered) -> case lang of
+                                       Just l -> H.pre $ H.code H.! HA.class_ (H.toValue l) $ rendered
+                                       Nothing -> H.pre $ H.code $ rendered
         }
 
 -- | Helper for creating a 'FHRaw'.

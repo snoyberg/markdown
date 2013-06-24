@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+import Text.Blaze.Html (toHtml)
+import Text.Blaze.Html5 (figure)
 import Test.Hspec
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
@@ -99,6 +101,11 @@ main = do
             $ check
                 "<pre><code>foo\n bar\nbaz</code></pre>"
                 "    foo\n     bar\n    baz"
+        it "custom renderer"
+            $ checkSet
+                def { msBlockCodeRenderer = (\_ (u,_) -> figure (toHtml u)) }
+                "<figure>foo\n bar\nbaz</figure>"
+                "```haskell\nfoo\n bar\nbaz\n```"
     describe "escaping" $ do
         it "everything"
             $ check
