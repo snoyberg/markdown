@@ -65,6 +65,13 @@ data MarkdownSettings = MarkdownSettings
       -- <pre class="sourceCode"><code class="sourceCode">main <span class="fu">=</span> <span class="fu">putStrLn</span> <span class="st">&quot;Hello world!&quot;</span></code></pre>
       --
       -- Since: 0.1.2.1
+    , msLinkNewTab :: Bool
+      -- ^ If @True@, all generated links have the attribute target=_blank set,
+      -- causing them to be opened in a new tab or window.
+      --
+      -- Default: @False@
+      --
+      -- Since 0.1.4
     }
 
 -- | See 'msFencedHandlers.
@@ -84,6 +91,7 @@ instance Default MarkdownSettings where
             \lang (_,rendered) -> case lang of
                                        Just l -> H.pre $ H.code H.! HA.class_ (H.toValue l) $ rendered
                                        Nothing -> H.pre $ H.code $ rendered
+        , msLinkNewTab = False
         }
 
 -- | Helper for creating a 'FHRaw'.

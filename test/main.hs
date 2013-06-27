@@ -156,6 +156,9 @@ main = do
         it "not a link" $ check
             "<p>Not a [ link</p>"
             "Not a [ link"
+        it "new tab" $ checkSet def { msLinkNewTab = True }
+            "<p><a href=\"foo\" target=\"_blank\">bar</a></p>"
+            "[bar](foo)"
 
     {-
     describe "github links" $ do

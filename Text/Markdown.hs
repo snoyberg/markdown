@@ -10,6 +10,7 @@ module Text.Markdown
     , msStandaloneHtml
     , msFencedHandlers
     , msBlockCodeRenderer
+    , msLinkNewTab
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
@@ -150,8 +151,12 @@ toHtmlI ms is0
     go (InlineItalic is) = H.i $ gos is
     go (InlineBold is) = H.b $ gos is
     go (InlineCode t) = H.code $ toMarkup t
-    go (InlineLink url Nothing content) = H.a H.! HA.href (H.toValue url) $ gos content
-    go (InlineLink url (Just title) content) = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) $ gos content
+    go (InlineLink url Nothing content)
+        | msLinkNewTab ms = H.a H.! HA.href (H.toValue url) H.! HA.target "_blank" $ gos content
+        | otherwise = H.a H.! HA.href (H.toValue url) $ gos content
+    go (InlineLink url (Just title) content)
+        | msLinkNewTab ms = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) H.! HA.target "_blank" $ gos content
+        | otherwise = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) $ gos content
     go (InlineImage url Nothing content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content)
     go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
     go (InlineHtml t) = escape t
