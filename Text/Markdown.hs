@@ -11,6 +11,7 @@ module Text.Markdown
     , msFencedHandlers
     , msBlockCodeRenderer
     , msLinkNewTab
+    , msBlankBeforeBlockquote
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
