@@ -6,12 +6,15 @@ import Test.Hspec
 import Data.Text (Text)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
-import Text.Markdown (def)
+import Text.Markdown (def, MarkdownSettings(..))
 import Text.Markdown.Block
 import Data.Functor.Identity (runIdentity)
 
+checkWith :: MarkdownSettings -> Text -> [Block Text] -> Expectation
+checkWith ms md blocks = runIdentity (yield md $$ toBlocks ms =$ CL.consume) `shouldBe` blocks
+
 check :: Text -> [Block Text] -> Expectation
-check md blocks = runIdentity (yield md $$ toBlocks def =$ CL.consume) `shouldBe` blocks
+check = checkWith def
 
 blockSpecs :: Spec
 blockSpecs = do
@@ -62,6 +65,12 @@ blockSpecs = do
             [ BlockQuote [BlockPara "foo"]
             , BlockQuote [BlockList Unordered $ Left "bar"]
             ]
+        it "require blank before blockquote" $ check
+            "foo\n> bar"
+            [ BlockPara "foo\n> bar" ]
+        it "no blank before blockquote" $ checkWith def { msBlankBeforeBlockquote = False }
+            "foo\n> bar"
+            [ BlockPara "foo", BlockQuote [BlockPara "bar"]]
     describe "indented code" $ do
         it "simple" $ check
             "    foo\n    bar\n"
