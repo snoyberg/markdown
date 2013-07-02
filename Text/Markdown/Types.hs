@@ -72,6 +72,15 @@ data MarkdownSettings = MarkdownSettings
       -- Default: @False@
       --
       -- Since 0.1.4
+
+    , msBlankBeforeBlockquote :: Bool
+      -- ^ If @True@, a blank line is required before the start of a blockquote.  Standard
+      -- markdown syntax does not require a blank line before a blockquote, but it is all
+      -- too easy for a > to end up at the beginning of a line by accident.
+      --
+      -- Default: @True@
+      --
+      -- Since 0.1.5
     }
 
 -- | See 'msFencedHandlers.
@@ -92,6 +101,7 @@ instance Default MarkdownSettings where
                                        Just l -> H.pre $ H.code H.! HA.class_ (H.toValue l) $ rendered
                                        Nothing -> H.pre $ H.code $ rendered
         , msLinkNewTab = False
+        , msBlankBeforeBlockquote = True
         }
 
 -- | Helper for creating a 'FHRaw'.
