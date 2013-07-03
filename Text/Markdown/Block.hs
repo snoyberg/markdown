@@ -229,6 +229,7 @@ start ms t =
                             Nothing -> False
                     isNonPara LineBlank = True
                     isNonPara LineFenced{} = True
+                    isNonPara LineBlockQuote{} = not $ msBlankBeforeBlockquote ms
                     isNonPara _ = False
                 (mfinal, ls) <- takeTillConsume (\x -> isNonPara (lineType ms x) || listStartIndent x)
                 maybe (return ()) leftover mfinal
