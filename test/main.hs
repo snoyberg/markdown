@@ -202,6 +202,13 @@ main = do
                 }
             "<article class=\"someclass\"><p>foo</p><blockquote><p>bar</p></blockquote></article>"
             "@@@ someclass\nfoo\n\n> bar\n@@@"
+    describe "footnotes" $ do
+        it "inline" $
+            check "<p><a href=\"#footnote-1\" id=\"ref-1\">[1]</a>hello</p>"
+                  "{1}hello"
+        it "references" $
+            check "<p><a href=\"#ref-1\" id=\"footnote-1\">[1]</a>hello</p>"
+                  "{^1}hello"
     describe "examples" $ sequence_ examples
     describe "John Gruber's test suite" $ sequence_ gruber
 

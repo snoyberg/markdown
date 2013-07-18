@@ -32,6 +32,8 @@ data Inline = InlineText Text
             | InlineHtml Text
             | InlineLink Text (Maybe Text) [Inline] -- ^ URL, title, content
             | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
+            | InlineFootnoteRef Integer -- ^ The footnote reference in the body
+            | InlineFootnote Integer
     deriving (Show, Eq)
 
 inlineParser :: RefMap -> Parser [Inline]
@@ -50,9 +52,11 @@ combine (InlineCode x:rest) = InlineCode x : combine rest
 combine (InlineLink u t c:rest) = InlineLink u t (combine c) : combine rest
 combine (InlineImage u t c:rest) = InlineImage u t c : combine rest
 combine (InlineHtml t:rest) = InlineHtml t : combine rest
+combine (InlineFootnote x:rest) = InlineFootnote x : combine rest
+combine (InlineFootnoteRef x:rest) = InlineFootnoteRef x : combine rest
 
 specials :: [Char]
-specials = "*_`\\[]!<&"
+specials = "*_`\\[]!<&{}"
 
 inlineAny :: RefMap -> Parser Inline
 inlineAny refs =
@@ -64,6 +68,8 @@ inline :: RefMap -> Parser Inline
 inline refs =
     text
     <|> escape
+    <|> footnote
+    <|> footnoteRef
     <|> paired "**" InlineBold <|> paired "__" InlineBold
     <|> paired "*" InlineItalic <|> paired "_" InlineItalic
     <|> doubleCode <|> code
@@ -92,6 +98,9 @@ inline refs =
 
     doubleCode = InlineCode . T.pack <$> (string "`` " *> manyTill anyChar (string " ``"))
     code = InlineCode <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
+
+    footnoteRef = InlineFootnoteRef <$> (char '{' *> decimal <* char '}')
+    footnote = InlineFootnote <$> (string "{^" *> decimal <* char '}')
 
     escape = InlineText . T.singleton <$> (char '\\' *> satisfy (`elem` "\\`*_{}[]()#+-.!>"))
 

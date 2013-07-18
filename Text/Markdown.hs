@@ -154,3 +154,11 @@ toHtmlI ms is0
     go (InlineImage url Nothing content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content)
     go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
     go (InlineHtml t) = escape t
+    go (InlineFootnoteRef x) = let ishown = TL.pack (show x)
+                                   (<>) = mappend
+                                in H.a H.! HA.href (H.toValue $ "#footnote-" <> ishown)
+                                       H.! HA.id (H.toValue $ "ref-" <> ishown) $ H.toHtml $ "[" <> ishown <> "]"
+    go (InlineFootnote x) = let ishown = TL.pack (show x)
+                                (<>) = mappend
+                             in H.a H.! HA.href (H.toValue $ "#ref-" <> ishown)
+                                    H.! HA.id (H.toValue $ "footnote-" <> ishown) $ H.toHtml $ "[" <> ishown <> "]"
