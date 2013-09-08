@@ -72,7 +72,7 @@ inline refs =
     <|> footnoteRef
     <|> paired "**" InlineBold <|> paired "__" InlineBold
     <|> paired "*" InlineItalic <|> paired "_" InlineItalic
-    <|> doubleCode <|> code
+    <|> doubleCodeSpace <|> doubleCode <|> code
     <|> link
     <|> image
     <|> autoLink
@@ -96,7 +96,8 @@ inline refs =
         is <- inlinesTill t
         if null is then fail "wrapped around something missing" else return is
 
-    doubleCode = InlineCode . T.pack <$> (string "`` " *> manyTill anyChar (string " ``"))
+    doubleCodeSpace = InlineCode . T.pack <$> (string "`` " *> manyTill anyChar (string " ``"))
+    doubleCode = InlineCode . T.pack <$> (string "``" *> manyTill anyChar (string "``"))
     code = InlineCode <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
 
     footnoteRef = InlineFootnoteRef <$> (char '{' *> decimal <* char '}')
