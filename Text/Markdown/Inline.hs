@@ -13,6 +13,7 @@ import Data.Attoparsec.Text
 import Control.Applicative
 import Data.Monoid (Monoid, mappend)
 import qualified Data.Map as Map
+import Text.Markdown.Types (Inline(..))
 
 type RefMap = Map.Map Text Text
 
@@ -25,16 +26,6 @@ toInline refmap t =
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
 
-data Inline = InlineText Text
-            | InlineItalic [Inline]
-            | InlineBold [Inline]
-            | InlineCode Text
-            | InlineHtml Text
-            | InlineLink Text (Maybe Text) [Inline] -- ^ URL, title, content
-            | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
-            | InlineFootnoteRef Integer -- ^ The footnote reference in the body
-            | InlineFootnote Integer
-    deriving (Show, Eq)
 
 inlineParser :: RefMap -> Parser [Inline]
 inlineParser = fmap combine . many . inlineAny

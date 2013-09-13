@@ -81,6 +81,13 @@ data MarkdownSettings = MarkdownSettings
       -- Default: @True@
       --
       -- Since 0.1.5
+    , msBlockFilter :: [Block [Inline]] -> [Block [Inline]]
+      -- ^ A function to filter and/or modify parsed blocks before they are
+      -- written to Html
+      --
+      -- Default: @id@
+      --
+      -- Since 0.1.6.2
     }
 
 -- | See 'msFencedHandlers.
@@ -102,6 +109,7 @@ instance Default MarkdownSettings where
                                        Nothing -> H.pre $ H.code $ rendered
         , msLinkNewTab = False
         , msBlankBeforeBlockquote = True
+        , msBlockFilter = id
         }
 
 -- | Helper for creating a 'FHRaw'.
@@ -157,3 +165,14 @@ instance Functor Block where
     fmap f (BlockHeading level i) = BlockHeading level (f i)
     fmap _ (BlockReference x y) = BlockReference x y
     fmap f (BlockPlainText x) = BlockPlainText (f x)
+
+data Inline = InlineText Text
+            | InlineItalic [Inline]
+            | InlineBold [Inline]
+            | InlineCode Text
+            | InlineHtml Text
+            | InlineLink Text (Maybe Text) [Inline] -- ^ URL, title, content
+            | InlineImage Text (Maybe Text) Text -- ^ URL, title, content
+            | InlineFootnoteRef Integer -- ^ The footnote reference in the body
+            | InlineFootnote Integer
+    deriving (Show, Eq)
