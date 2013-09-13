@@ -12,6 +12,7 @@ module Text.Markdown
     , msBlockCodeRenderer
     , msLinkNewTab
     , msBlankBeforeBlockquote
+    , msBlockFilter
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
@@ -69,17 +70,19 @@ markdown ms tl =
     sanitize
         | msXssProtect ms = preEscapedToMarkup . sanitizeBalance . TL.toStrict . renderHtml
         | otherwise = id
-    fixBlock :: Block Text -> Block Html
-    fixBlock = fmap $ toHtmlI ms . toInline refs
-
     blocksH :: [Block Html]
-    blocksH = map fixBlock blocks
+    blocksH = processBlocks blocks
 
     blocks :: [Block Text]
     blocks = runIdentity
            $ CL.sourceList (TL.toChunks tl)
           $$ toBlocks ms
           =$ CL.consume
+
+    processBlocks :: [Block Text] -> [Block Html]
+    processBlocks = map (fmap $ toHtmlI ms)
+                  . msBlockFilter ms
+                  . map (fmap $ toInline refs)
 
     refs =
         Map.unions $ map toRef blocks
