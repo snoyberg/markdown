@@ -87,7 +87,7 @@ data MarkdownSettings = MarkdownSettings
       --
       -- Default: @id@
       --
-      -- Since 0.1.6.2
+      -- Since 0.1.7
     }
 
 -- | See 'msFencedHandlers.
