@@ -1,7 +1,8 @@
 extensions: {}
 cabal-file: project.cabal
+extra-packages: ''
 version: 1
-environment: null
+environment: ghc-7.4.2-stable-13.09
 module-template: ! 'module MODULE_NAME where
 
 '
@@ -21,3 +22,5 @@ modules:
     filename: test/main.hs
   Text.Markdown.Types:
     filename: Text/Markdown/Types.hs
+  Babelmark:
+    filename: exe/Babelmark.hs
