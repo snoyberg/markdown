@@ -1,0 +1,23 @@
+extensions: {}
+cabal-file: project.cabal
+version: 1
+environment: null
+module-template: ! 'module MODULE_NAME where
+
+'
+ghc-args: []
+modules:
+  Block:
+    filename: test/Block.hs
+  Text.Markdown.Block:
+    filename: Text/Markdown/Block.hs
+  Text.Markdown:
+    filename: Text/Markdown.hs
+  Inline:
+    filename: test/Inline.hs
+  Text.Markdown.Inline:
+    filename: Text/Markdown/Inline.hs
+  Main(test/main.hs):
+    filename: test/main.hs
+  Text.Markdown.Types:
+    filename: Text/Markdown/Types.hs
