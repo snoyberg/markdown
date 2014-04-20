@@ -116,17 +116,13 @@ lineType ms t
         | otherwise = getFenced xs t'
 
     isRule :: Text -> Bool
-    isRule =
-        go . T.strip
+    isRule = maybe False go . T.uncons . T.strip
       where
-        go "* * *" = True
-        go "***" = True
-        go "*****" = True
-        go "- - -" = True
-        go "---" = True
-        go "___" = True
-        go "_ _ _" = True
-        go t' = T.length (T.takeWhile (== '-') t') >= 5
+        go (c, rest) = c `elem` "*-_" && maybe False (>=3) (countOf c rest)
+        countOf c = let go' (Just n) c' | c'==c   = Just (n+1)
+                                        | c'==' ' = Just n
+                        go' _ _                   = Nothing
+                    in T.foldl' go' (Just 1) 
 
     stripHeading :: Text -> Maybe (Int, Text)
     stripHeading t'
