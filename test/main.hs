@@ -20,6 +20,9 @@ import Inline
 check :: Text -> Text -> Expectation
 check html md = renderHtml (markdown def md) `shouldBe` html
 
+checkNot :: Text -> Text -> Expectation
+checkNot html md = renderHtml (markdown def md) `shouldSatisfy` (/=html)
+
 checkSet :: MarkdownSettings -> Text -> Text -> Expectation
 checkSet set html md = renderHtml (markdown set md) `shouldBe` html
 
@@ -192,6 +195,15 @@ main = do
                 , "----------------------------------"
                 ]
         forM_ options $ \o -> it (unpack o) $ check "<hr>" o
+
+    describe "bad rules" $ do
+        let options = concatMap (\t -> [t, snoc t '\n'])
+                [ "* *"
+                , "**+"
+                , "*--_*"
+                , "- + -"
+                ]
+        forM_ options $ \o -> it (unpack o) $ checkNot "<hr>" o
 
     describe "html" $ do
         it "inline" $ check "<p>foo<br>bar</p>" "foo<br>bar"

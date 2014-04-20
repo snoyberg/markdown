@@ -119,8 +119,9 @@ lineType ms t
     isRule = maybe False go . T.uncons . T.strip
       where
         go (c, rest) = c `elem` "*-_" && maybe False (>=3) (countOf c rest)
-        countOf c = let go' (Just n) c' | c'==c || c'==' ' = Just (n+1)
-                        go' _ _                            = Nothing
+        countOf c = let go' (Just n) c' | c'==c   = Just (n+1)
+                                        | c'==' ' = Just n
+                        go' _ _                   = Nothing
                     in T.foldl' go' (Just 1) 
 
     stripHeading :: Text -> Maybe (Int, Text)
