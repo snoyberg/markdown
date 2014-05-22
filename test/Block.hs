@@ -29,10 +29,17 @@ blockSpecs = do
             "~~~\nfoo\n\nbar\n"
             [BlockPara " ~~~\nfoo", BlockPara "bar"]
     describe "list" $ do
-        it "simple" $ check
-            "* foo\n\n*    bar\n\n"
+        it "simple unordered" $ check
+            "* foo\n\n*    bar\n\n*\t\tqux"
             [ BlockList Unordered (Right [BlockPara "foo"])
             , BlockList Unordered (Right [BlockPara "bar"])
+            , BlockList Unordered (Right [BlockPara "qux"])
+            ]
+        it "simple ordered" $ check
+            "1. foo\n\n3.    bar\n\n17.\t\tqux"
+            [ BlockList Ordered (Right [BlockPara "foo"])
+            , BlockList Ordered (Right [BlockPara "bar"])
+            , BlockList Ordered (Right [BlockPara "qux"])
             ]
         it "nested" $ check
             "* foo\n* \n    1. bar\n    2. baz"
@@ -51,6 +58,11 @@ blockSpecs = do
             , BlockList Unordered $ Right
                 [ BlockPara "baz"
                 ]
+            ]
+        it "without whitespace" $ check
+            "*foo\n\n1.bar"
+            [ BlockPara "*foo"
+            , BlockPara "1.bar"
             ]
     describe "blockquote" $ do
         it "simple" $ check

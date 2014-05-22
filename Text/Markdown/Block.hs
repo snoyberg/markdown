@@ -11,6 +11,7 @@ module Text.Markdown.Block
     ) where
 
 import Prelude
+import Control.Monad (msum)
 #if MIN_VERSION_conduit(1, 0, 0)
 import Data.Conduit
 #else
@@ -275,10 +276,8 @@ takeTillConsume f =
 
 listStart :: Text -> Maybe (ListType, Text)
 listStart t0
-    | Just t' <- T.stripPrefix "* " t = Just (Unordered, t')
-    | Just t' <- T.stripPrefix "+ " t = Just (Unordered, t')
-    | Just t' <- T.stripPrefix "- " t = Just (Unordered, t')
-    | Just t' <- stripNumber t, Just t'' <- stripSeparator t' = Just (Ordered, t'')
+    | Just t' <- stripUnorderedListSeparator t = Just (Unordered, t')
+    | Just t' <- stripNumber t, Just t'' <- stripOrderedListSeparator t' = Just (Ordered, t'')
     | otherwise = Nothing
   where
     t = T.stripStart t0
@@ -290,13 +289,19 @@ stripNumber x
   where
     (y, z) = T.span isDigit x
 
-stripSeparator :: Text -> Maybe Text
-stripSeparator x =
-    case T.uncons x of
-        Nothing -> Nothing
-        Just ('.', y) -> Just y
-        Just (')', y) -> Just y
-        _ -> Nothing
+stripUnorderedListSeparator :: Text -> Maybe Text
+stripUnorderedListSeparator =
+  stripPrefixChoice ["* ", "*\t", "+ ", "+\t", "- ", "-\t"]
+
+stripOrderedListSeparator :: Text -> Maybe Text
+stripOrderedListSeparator =
+  stripPrefixChoice [". ", ".\t", ") ", ")\t"]
+
+-- | Attempt to strip each of the prefixes in @xs@ from the start of @x@. As
+-- soon as one matches, return the remainder of @x@. Prefixes are tried in
+-- order. If none match, return @Nothing@.
+stripPrefixChoice :: [Text] -> Text -> Maybe Text
+stripPrefixChoice xs x = msum $ map (flip T.stripPrefix x) xs
 
 getIndented :: Monad m => Int -> Conduit Text m Text
 getIndented leader =
