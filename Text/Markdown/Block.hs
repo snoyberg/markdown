@@ -11,6 +11,7 @@ module Text.Markdown.Block
     ) where
 
 import Prelude
+import Control.Applicative ((<|>))
 #if MIN_VERSION_conduit(1, 0, 0)
 import Data.Conduit
 #else
@@ -291,12 +292,7 @@ stripNumber x
     (y, z) = T.span isDigit x
 
 stripSeparator :: Text -> Maybe Text
-stripSeparator x =
-    case T.uncons x of
-        Nothing -> Nothing
-        Just ('.', y) -> Just y
-        Just (')', y) -> Just y
-        _ -> Nothing
+stripSeparator x = T.stripPrefix ". " x <|> T.stripPrefix ") " x
 
 getIndented :: Monad m => Int -> Conduit Text m Text
 getIndented leader =

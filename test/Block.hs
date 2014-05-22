@@ -52,6 +52,11 @@ blockSpecs = do
                 [ BlockPara "baz"
                 ]
             ]
+        it "without whitespace" $ check
+            "*foo\n\n1.bar"
+            [ BlockPara "*foo"
+            , BlockPara "1.bar"
+            ]
     describe "blockquote" $ do
         it "simple" $ check
             "> foo\n>\n> * bar"
