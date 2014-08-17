@@ -222,6 +222,9 @@ main = do
     describe "examples" $ sequence_ examples
     describe "John Gruber's test suite" $ sequence_ gruber
 
+    it "comments without spaces #22" $
+        check "<!--<>-->" "<!--<>-->"
+
 getExamples :: IO [Spec]
 getExamples = do
     files <- F.listDirectory "test/examples"

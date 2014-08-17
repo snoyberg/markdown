@@ -241,7 +241,9 @@ isHtmlStart t =
     case T.stripPrefix "<" t of
         Nothing -> False
         Just t' ->
-            let (name, rest) = T.break (\c -> c `elem` " >") t'
+            let (name, rest)
+                    | Just x <- T.stripPrefix "!--" t' = ("--", t')
+                    | otherwise = T.break (\c -> c `elem` " >") t'
              in T.all isValidTagName name &&
                 not (T.null name) &&
                 (not ("/" `T.isPrefixOf` rest) || ("/>" `T.isPrefixOf` rest))
