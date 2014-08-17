@@ -23,10 +23,9 @@ Library
   Build-depends:       base                   >= 4       && < 5
                      , blaze-html             >= 0.4
                      , attoparsec             >= 0.10
-                     , attoparsec-conduit     >= 0.5
                      , transformers           >= 0.2.2
-                     , conduit                >= 0.5.2.1
-                     , conduit-extra
+                     , conduit                >= 1.1
+                     , conduit-extra          >= 1.1
                      , text
                      , data-default           >= 0.3
                      , xss-sanitize           >= 0.3.3
