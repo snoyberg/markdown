@@ -242,7 +242,7 @@ isHtmlStart t =
         Nothing -> False
         Just t' ->
             let (name, rest)
-                    | Just x <- T.stripPrefix "!--" t' = ("--", t')
+                    | Just _ <- T.stripPrefix "!--" t' = ("--", t')
                     | otherwise = T.break (\c -> c `elem` " >") t'
              in T.all isValidTagName name &&
                 not (T.null name) &&
