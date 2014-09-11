@@ -45,7 +45,7 @@ import Data.String (IsString)
 
 -- | A newtype wrapper providing a @ToHtml@ instance.
 newtype Markdown = Markdown TL.Text
-  deriving(Eq, Monoid, IsString)
+  deriving(Eq, Ord, Monoid, IsString, Show)
 
 instance ToMarkup Markdown where
     toMarkup (Markdown t) = markdown def t
