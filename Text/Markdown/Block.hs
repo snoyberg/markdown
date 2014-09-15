@@ -231,22 +231,27 @@ start ms t =
                     isNonPara LineBlank = True
                     isNonPara LineFenced{} = True
                     isNonPara LineBlockQuote{} = not $ msBlankBeforeBlockquote ms
+                    isNonPara LineHtml{} = True -- See example 95 in Common Markdown spec
                     isNonPara _ = False
                 (mfinal, ls) <- takeTillConsume (\x -> isNonPara (lineType ms x) || listStartIndent x)
                 maybe (return ()) leftover mfinal
                 yield $ Right $ BlockPara $ T.intercalate "\n" $ t' : ls
 
 isHtmlStart :: T.Text -> Bool
+-- Allow for up to three spaces before the opening tag.
+isHtmlStart t | "    " `T.isPrefixOf` t = False
 isHtmlStart t =
-    case T.stripPrefix "<" t of
+    case T.stripPrefix "<" $ T.dropWhile (== ' ') t of
         Nothing -> False
         Just t' ->
             let (name, rest)
                     | Just _ <- T.stripPrefix "!--" t' = ("--", t')
                     | otherwise = T.break (\c -> c `elem` " >") t'
-             in T.all isValidTagName name &&
+             in (T.all isValidTagName name &&
                 not (T.null name) &&
-                (not ("/" `T.isPrefixOf` rest) || ("/>" `T.isPrefixOf` rest))
+                (not ("/" `T.isPrefixOf` rest) || ("/>" `T.isPrefixOf` rest)))
+
+                || isPI t' || isCommentCData t'
   where
     isValidTagName :: Char -> Bool
     isValidTagName c =
@@ -257,6 +262,9 @@ isHtmlStart t =
         (c == '_') ||
         (c == '/') ||
         (c == '!')
+
+    isPI = ("?" `T.isPrefixOf`)
+    isCommentCData = ("!" `T.isPrefixOf`)
 
 takeTill :: Monad m => (i -> Bool) -> Conduit i m i
 takeTill f =

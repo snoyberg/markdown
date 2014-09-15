@@ -10,6 +10,8 @@ import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import Data.List (isInfixOf)
+import Data.Maybe (fromMaybe)
 
 import qualified Filesystem.Path.CurrentOS as F
 import qualified Filesystem as F
@@ -233,7 +235,13 @@ getExamples = do
     go fp = do
         input <- F.readTextFile fp
         output <- F.readTextFile $ F.replaceExtension fp "html"
-        return $ it (F.encodeString $ F.basename fp) $ check (fromStrict $ T.strip output) (fromStrict input)
+        let (checker, stripper)
+                | "-spec" `isInfixOf` F.encodeString fp = (check', dropFinalLF)
+                | otherwise = (check, T.strip)
+
+        return $ it (F.encodeString $ F.basename fp) $ checker (fromStrict $ stripper output) (fromStrict input)
+
+    dropFinalLF t = fromMaybe t $ T.stripSuffix "\n" t
 
 getGruber :: IO [Spec]
 getGruber = do
