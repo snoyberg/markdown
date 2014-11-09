@@ -29,6 +29,7 @@ import Text.Markdown.Block
 import Text.Markdown.Types
 import Prelude hiding (sequence, takeWhile)
 import Data.Default (Default (..))
+import Data.List (intersperse)
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html (ToMarkup (..), Html)
@@ -80,9 +81,11 @@ markdown ms tl =
           =$ CL.consume
 
     processBlocks :: [Block Text] -> [Block Html]
-    processBlocks = map (fmap $ toHtmlI ms)
+    processBlocks = map (fmap $ mconcat . intersperse H.br)
+                  . map (fmap $ map $ toHtmlI ms)
                   . msBlockFilter ms
-                  . map (fmap $ toInline refs)
+                  . map (fmap $ map $ toInline refs)
+                  . map toBlockLines
 
     refs =
         Map.unions $ map toRef blocks

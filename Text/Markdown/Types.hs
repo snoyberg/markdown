@@ -81,7 +81,7 @@ data MarkdownSettings = MarkdownSettings
       -- Default: @True@
       --
       -- Since 0.1.5
-    , msBlockFilter :: [Block [Inline]] -> [Block [Inline]]
+    , msBlockFilter :: [Block [[Inline]]] -> [Block [[Inline]]]
       -- ^ A function to filter and/or modify parsed blocks before they are
       -- written to Html
       --
