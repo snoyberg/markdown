@@ -81,9 +81,9 @@ markdown ms tl =
           =$ CL.consume
 
     processBlocks :: [Block Text] -> [Block Html]
-    processBlocks = map (fmap $ mconcat . intersperse H.br)
-                  . map (fmap $ map $ toHtmlI ms)
+    processBlocks = map (fmap $ toHtmlI ms)
                   . msBlockFilter ms
+                  . map (fmap $ concat . intersperse [InlineHtml "<br>"])
                   . map (fmap $ map $ toInline refs)
                   . map toBlockLines
 
