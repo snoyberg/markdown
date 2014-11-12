@@ -35,7 +35,9 @@ import qualified Data.Map as Map
 #endif
 
 toBlockLines :: Block Text -> Block [Text]
-toBlockLines = fmap (concatMap (T.splitOn "  \r\n") . T.splitOn "  \n")
+toBlockLines = fmap $ map T.stripEnd
+                    . concatMap (T.splitOn "  \r\n")
+                    . T.splitOn "  \n"
 
 toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
 toBlocks ms =
