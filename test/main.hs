@@ -43,6 +43,14 @@ main = do
   hspec $ do
     describe "block" blockSpecs
     describe "inline" inlineSpecs
+    describe "line break" $ do
+        it "is inserted for a single newline after two spaces"
+            $ check "<p>Hello<br>World!</p>" "Hello  \nWorld!"
+        it "is also inserted for a single CRLF after two spaces"
+            $ check "<p>Hello<br>World!</p>" "Hello  \r\nWorld!"
+        it "preserves quote nesting of the previous line"
+            $ check "<blockquote><p>Q1<br>Q2</p></blockquote><p>P2</p>"
+                    "> Q1  \nQ2\n\nP2"
     describe "paragraphs" $ do
         it "simple"
             $ check "<p>Hello World!</p>" "Hello World!"
