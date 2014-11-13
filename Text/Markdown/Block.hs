@@ -8,6 +8,7 @@ module Text.Markdown.Block
     ( Block (..)
     , ListType (..)
     , toBlocks
+    , toBlockLines
     ) where
 
 import Prelude
@@ -32,6 +33,11 @@ import qualified Data.Map as Map
 (=$=) :: Monad m => Pipe a a b x m y -> Pipe b b c y m z -> Pipe a a c x m z
 (=$=) = pipeL
 #endif
+
+toBlockLines :: Block Text -> Block [Text]
+toBlockLines = fmap $ map T.stripEnd
+                    . concatMap (T.splitOn "  \r\n")
+                    . T.splitOn "  \n"
 
 toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
 toBlocks ms =
