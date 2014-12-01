@@ -146,6 +146,20 @@ main = do
             $ check
                 "<h1>foo</h1><h2>bar</h2>"
                 "foo\n=============\n\nbar\n----------------\n"
+    describe "headings with ID" $ do
+        let withHeadingId = def { msAddHeadingId = True }
+        it "without spaces"
+            $ checkSet withHeadingId
+                "<h1 id=\"foo\">foo</h1><h2 id=\"bar\">bar</h2><h3 id=\"baz\">baz</h3>"
+                "# foo\n\n##     bar\n\n###baz"
+        it "with spaces"
+            $ checkSet withHeadingId
+                "<h1 id=\"executive-summary\">Executive summary</h1>"
+                "# Executive summary"
+        it "with special characters"
+            $ checkSet withHeadingId
+                "<h1 id=\"executive-summary-.-_:\">Executive summary .!@#$%^*()-_=:</h1>"
+                "# Executive summary .!@#$%^*()-_=:"
     describe "blockquotes" $ do
         it "simple"
             $ check
@@ -181,7 +195,7 @@ main = do
     -}
 
     describe "images" $ do
-        it "simple" $ check 
+        it "simple" $ check
             "<p><img src=\"http://link.to/image.jpg\" alt=\"foo\"></p>"
             "![foo](http://link.to/image.jpg)"
         it "title" $ check
