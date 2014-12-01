@@ -90,7 +90,7 @@ data MarkdownSettings = MarkdownSettings
       -- Since 0.1.7
 
     , msAddHeadingId :: Bool
-      -- ^ If @True@, an `id` attribute is added to the heading tag with the value equal to
+      -- ^ If @True@, an @id@ attribute is added to the heading tag with the value equal to
       -- the text with only valid CSS identifier characters.
       --
       -- > ## Executive Summary
