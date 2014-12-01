@@ -88,6 +88,19 @@ data MarkdownSettings = MarkdownSettings
       -- Default: @id@
       --
       -- Since 0.1.7
+
+    , msAddHeadingId :: Bool
+      -- ^ If @True@, an `id` attribute is added to the heading tag with the value equal to
+      -- the text with only valid CSS identifier characters.
+      --
+      -- > ## Executive Summary
+      --
+      -- > <h2 id="executive-summary">Executive Summary</h2>
+      --
+      -- Default: @False@
+      --
+      -- Since 0.1.13
+
     }
 
 -- | See 'msFencedHandlers.
@@ -110,6 +123,7 @@ instance Default MarkdownSettings where
         , msLinkNewTab = False
         , msBlankBeforeBlockquote = True
         , msBlockFilter = id
+        , msAddHeadingId = False
         }
 
 -- | Helper for creating a 'FHRaw'.

@@ -1,5 +1,5 @@
 Name:                markdown
-Version:             0.1.12
+Version:             0.1.13
 Synopsis:            Convert Markdown to HTML, with XSS protection
 Description:         This library leverages existing high-performance libraries (attoparsec, blaze-html, text, and conduit), and should integrate well with existing codebases.
 Homepage:            https://github.com/snoyberg/markdown
@@ -21,6 +21,7 @@ Library
                        Text.Markdown.Inline
   other-modules:       Text.Markdown.Types
   Build-depends:       base                   >= 4       && < 5
+                     , blaze-markup           >= 0.6
                      , blaze-html             >= 0.4
                      , attoparsec             >= 0.10
                      , transformers           >= 0.2.2

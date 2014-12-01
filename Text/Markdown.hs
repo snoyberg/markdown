@@ -13,6 +13,7 @@ module Text.Markdown
     , msLinkNewTab
     , msBlankBeforeBlockquote
     , msBlockFilter
+    , msAddHeadingId
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
@@ -28,10 +29,12 @@ import Text.Markdown.Inline
 import Text.Markdown.Block
 import Text.Markdown.Types
 import Prelude hiding (sequence, takeWhile)
+import Data.Char (isAlphaNum)
 import Data.Default (Default (..))
-import Data.List (intercalate)
+import Data.List (intercalate, isInfixOf)
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
+import Text.Blaze (toValue)
 import Text.Blaze.Html (ToMarkup (..), Html)
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Data.Conduit
@@ -130,8 +133,9 @@ toHtmlB ms =
     go (BlockCode a b) = msBlockCodeRenderer ms a (id &&& toMarkup $ b)
     go (BlockQuote bs) = H.blockquote $ blocksToHtml bs
     go BlockRule = H.hr
-    go (BlockHeading level h) =
-        wrap level h
+    go (BlockHeading level h)
+        | msAddHeadingId ms = wrap level H.! HA.id (clean h) $ h
+        | otherwise         = wrap level h
       where
        wrap 1 = H.h1
        wrap 2 = H.h2
@@ -139,6 +143,13 @@ toHtmlB ms =
        wrap 4 = H.h4
        wrap 5 = H.h5
        wrap _ = H.h6
+
+       isValidChar c = isAlphaNum c || isInfixOf [c] "-_:."
+
+       clean = toValue . TL.filter isValidChar . (TL.replace " " "-") . TL.toLower . renderHtml
+
+
+
     go BlockReference{} = return ()
 
     blocksToHtml bs = runIdentity $ mapM_ yield bs $$ toHtmlB ms =$ CL.fold mappend mempty
