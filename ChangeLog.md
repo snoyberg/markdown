@@ -1,3 +1,7 @@
+## 0.1.13.1
+
+Fixes for GHC 7.10
+
 ## 0.1.13
 
 Add `msAddHeadingId`.
