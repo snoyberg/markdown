@@ -1,3 +1,7 @@
+## 0.1.13.2
+
+* Drop system-filepath
+
 ## 0.1.13.1
 
 Fixes for GHC 7.10

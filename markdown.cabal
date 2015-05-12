@@ -1,5 +1,5 @@
 Name:                markdown
-Version:             0.1.13.1
+Version:             0.1.13.2
 Synopsis:            Convert Markdown to HTML, with XSS protection
 Description:         This library leverages existing high-performance libraries (attoparsec, blaze-html, text, and conduit), and should integrate well with existing codebases.
 Homepage:            https://github.com/snoyberg/markdown
@@ -46,12 +46,12 @@ test-suite test
                  , hspec            >= 1.3
                  , blaze-html
                  , text
-                 , system-fileio
-                 , system-filepath
                  , transformers
                  , conduit
                  , conduit-extra
                  , containers
+                 , filepath
+                 , directory
 
 source-repository head
   type:     git

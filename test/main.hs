@@ -5,16 +5,17 @@ import Test.Hspec
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Control.Monad (forM_)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, isSuffixOf)
 import Data.Maybe (fromMaybe)
 
-import qualified Filesystem.Path.CurrentOS as F
-import qualified Filesystem as F
+import System.Directory (getDirectoryContents)
+import System.FilePath ((</>), replaceExtension)
 
 import Block
 import Inline
@@ -253,26 +254,30 @@ main = do
 
 getExamples :: IO [Spec]
 getExamples = do
-    files <- F.listDirectory "test/examples"
-    mapM go $ filter (flip F.hasExtension "md") files
+    files <- getDirectoryContents dir
+    mapM go $ filter (".md" `isSuffixOf`) files
   where
-    go fp = do
-        input <- F.readTextFile fp
-        output <- F.readTextFile $ F.replaceExtension fp "html"
+    dir = "test/examples"
+    go basename = do
+        let fp = dir </> basename
+        input <- TIO.readFile fp
+        output <- TIO.readFile $ replaceExtension fp "html"
         let (checker, stripper)
-                | "-spec" `isInfixOf` F.encodeString fp = (check', dropFinalLF)
+                | "-spec" `isInfixOf` fp = (check', dropFinalLF)
                 | otherwise = (check, T.strip)
 
-        return $ it (F.encodeString $ F.basename fp) $ checker (fromStrict $ stripper output) (fromStrict input)
+        return $ it basename $ checker (fromStrict $ stripper output) (fromStrict input)
 
     dropFinalLF t = fromMaybe t $ T.stripSuffix "\n" t
 
 getGruber :: IO [Spec]
 getGruber = do
-    files <- F.listDirectory "test/Tests"
-    mapM go $ filter (flip F.hasExtension "text") files
+    files <- getDirectoryContents dir
+    mapM go $ filter (".text" `isSuffixOf`) files
   where
-    go fp = do
-        input <- F.readTextFile fp
-        output <- F.readTextFile $ F.replaceExtension fp "html"
-        return $ it (F.encodeString $ F.basename fp) $ checkNoNL (fromStrict $ T.strip output) (fromStrict input)
+    dir = "test/Tests"
+    go basename = do
+        let fp = dir </> basename
+        input <- TIO.readFile fp
+        output <- TIO.readFile $ replaceExtension fp "html"
+        return $ it basename $ checkNoNL (fromStrict $ T.strip output) (fromStrict input)
