@@ -1,3 +1,7 @@
+## 0.1.14
+
+* Handle named entities [#30](https://github.com/snoyberg/markdown/issues/30)
+
 ## 0.1.13.2
 
 * Drop system-filepath

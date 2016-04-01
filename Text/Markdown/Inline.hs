@@ -14,6 +14,8 @@ import Control.Applicative
 import Data.Monoid (Monoid, mappend)
 import qualified Data.Map as Map
 import Text.Markdown.Types (Inline(..))
+import Data.XML.Types (Content (..))
+import Text.XML.Stream.Parse (decodeHtmlEntities)
 
 type RefMap = Map.Map Text Text
 
@@ -207,6 +209,7 @@ inline refs =
         <|> rawent "&apos;"
         <|> decEnt
         <|> hexEnt
+        <|> namedEnt
 
     rawent t = InlineHtml <$> string t
 
@@ -229,6 +232,14 @@ inline refs =
             , t
             , T.singleton c
             ]
+
+    namedEnt = do
+        _s <- char '&'
+        t <- takeWhile1 (/= ';')
+        _c <- char ';'
+        case decodeHtmlEntities t of
+            ContentText t' -> return $ InlineHtml t'
+            ContentEntity _ -> fail "Unknown named entity"
 
 hrefChar :: Parser Char
 hrefChar = (char '\\' *> anyChar) <|> satisfy (notInClass " )")
