@@ -6,6 +6,7 @@ module Text.Markdown
       markdown
       -- * Settings
     , MarkdownSettings
+    , defaultMarkdownSettings
     , msXssProtect
     , msStandaloneHtml
     , msFencedHandlers

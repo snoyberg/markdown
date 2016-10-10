@@ -111,8 +111,8 @@ data FencedHandler = FHRaw (Text -> [Block Text])
                    | FHParsed ([Block Text] -> [Block Text])
                      -- ^ Wrap up the given parsed content.
 
-instance Default MarkdownSettings where
-    def = MarkdownSettings
+defaultMarkdownSettings :: MarkdownSettings
+defaultMarkdownSettings = MarkdownSettings
         { msXssProtect = True
         , msStandaloneHtml = empty
         , msFencedHandlers = codeFencedHandler "```" `mappend` codeFencedHandler "~~~"
@@ -125,6 +125,9 @@ instance Default MarkdownSettings where
         , msBlockFilter = id
         , msAddHeadingId = False
         }
+
+instance Default MarkdownSettings where
+    def = defaultMarkdownSettings
 
 -- | Helper for creating a 'FHRaw'.
 --
