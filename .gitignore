@@ -3,3 +3,4 @@ dist/
 /tarballs/
 .cabal-sandbox/
 cabal.sandbox.config
+.stack-work/
