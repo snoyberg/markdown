@@ -111,6 +111,7 @@ data FencedHandler = FHRaw (Text -> [Block Text])
                    | FHParsed ([Block Text] -> [Block Text])
                      -- ^ Wrap up the given parsed content.
 
+-- | @since 0.1.15
 defaultMarkdownSettings :: MarkdownSettings
 defaultMarkdownSettings = MarkdownSettings
         { msXssProtect = True
