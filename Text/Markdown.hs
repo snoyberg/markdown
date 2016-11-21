@@ -15,6 +15,7 @@ module Text.Markdown
     , msBlankBeforeBlockquote
     , msBlockFilter
     , msAddHeadingId
+    , setNoFollowExternal
       -- * Newtype
     , Markdown (..)
       -- * Fenced handlers
@@ -33,7 +34,9 @@ import Prelude hiding (sequence, takeWhile)
 import Data.Char (isAlphaNum)
 import Data.Default (Default (..))
 import Data.List (intercalate, isInfixOf)
+import Data.Maybe (isJust)
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Text.Blaze (toValue)
 import Text.Blaze.Html (ToMarkup (..), Html)
@@ -170,12 +173,13 @@ toHtmlI ms is0
     go (InlineItalic is) = H.i $ gos is
     go (InlineBold is) = H.b $ gos is
     go (InlineCode t) = H.code $ toMarkup t
-    go (InlineLink url Nothing content)
-        | msLinkNewTab ms = H.a H.! HA.href (H.toValue url) H.! HA.target "_blank" $ gos content
-        | otherwise = H.a H.! HA.href (H.toValue url) $ gos content
-    go (InlineLink url (Just title) content)
-        | msLinkNewTab ms = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) H.! HA.target "_blank" $ gos content
-        | otherwise = H.a H.! HA.href (H.toValue url) H.! HA.title (H.toValue title) $ gos content
+    go (InlineLink url mtitle content) =
+        H.a
+        H.! HA.href (H.toValue url)
+        H.!? (msLinkNewTab ms, HA.target "_blank")
+        H.!? (msNoFollowExternal ms && isExternalLink url, HA.rel "nofollow")
+        H.!? (isJust mtitle, HA.title $ maybe (error "impossible") H.toValue mtitle)
+        $ gos content
     go (InlineImage url Nothing content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content)
     go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
     go (InlineHtml t) = escape t
@@ -187,3 +191,13 @@ toHtmlI ms is0
                                 (<>) = mappend
                              in H.a H.! HA.href (H.toValue $ "#ref-" <> ishown)
                                     H.! HA.id (H.toValue $ "footnote-" <> ishown) $ H.toHtml $ "[" <> ishown <> "]"
+
+-- | For external links, add the rel="nofollow" attribute
+--
+-- @since 0.1.16
+setNoFollowExternal :: MarkdownSettings -> MarkdownSettings
+setNoFollowExternal ms = ms { msNoFollowExternal = True }
+
+-- | Is the given URL an external link?
+isExternalLink :: Text -> Bool
+isExternalLink = T.isInfixOf "//"

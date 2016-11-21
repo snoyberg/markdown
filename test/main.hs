@@ -252,6 +252,17 @@ main = do
     it "comments without spaces #22" $
         check "<!--<>-->" "<!--<>-->"
 
+    describe "no follow" $ do
+        it "external 1" $ checkSet (setNoFollowExternal def)
+            "<p><a href=\"http://example.com\" rel=\"nofollow\">example</a></p>"
+            "[example](http://example.com)"
+        it "external 2" $ checkSet (setNoFollowExternal def)
+            "<p><a href=\"//example.com\" rel=\"nofollow\">example</a></p>"
+            "[example](//example.com)"
+        it "internal" $ checkSet (setNoFollowExternal def)
+            "<p><a href=\"/foo\">example</a></p>"
+            "[example](/foo)"
+
 getExamples :: IO [Spec]
 getExamples = do
     files <- getDirectoryContents dir

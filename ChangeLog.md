@@ -1,3 +1,7 @@
+## 0.1.16
+
+* Add `setNoFollowExternal`
+
 ## 0.1.15
 
 * defaultMarkdownSettings

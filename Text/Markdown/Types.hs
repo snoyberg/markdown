@@ -101,6 +101,7 @@ data MarkdownSettings = MarkdownSettings
       --
       -- Since 0.1.13
 
+    , msNoFollowExternal :: Bool
     }
 
 -- | See 'msFencedHandlers.
@@ -125,6 +126,7 @@ defaultMarkdownSettings = MarkdownSettings
         , msBlankBeforeBlockquote = True
         , msBlockFilter = id
         , msAddHeadingId = False
+        , msNoFollowExternal = False
         }
 
 instance Default MarkdownSettings where
