@@ -130,7 +130,7 @@ matrix:
     compiler: ": #stack 8.0.2 osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-10"
+  - env: BUILD=stack ARGS="--resolver lts-11"
     compiler: ": #stack 8.2.2 osx"
     os: osx
 
