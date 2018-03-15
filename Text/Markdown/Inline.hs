@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Attoparsec.Text
 import Control.Applicative
-import Data.Monoid (Monoid, mappend)
+import Data.Monoid ((<>))
 import qualified Data.Map as Map
 import Text.Markdown.Types (Inline(..))
 import Data.XML.Types (Content (..))
@@ -24,9 +24,6 @@ toInline refmap t =
     case parseOnly (inlineParser refmap) t of
         Left s -> [InlineText $ T.pack s]
         Right is -> is
-
-(<>) :: Monoid m => m -> m -> m
-(<>) = mappend
 
 
 inlineParser :: RefMap -> Parser [Inline]

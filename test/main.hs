@@ -20,7 +20,7 @@ import System.FilePath ((</>), replaceExtension)
 import Block
 import Inline
 
-check :: Text -> Text -> Expectation
+check :: HasCallStack => Text -> Text -> Expectation
 check html md = renderHtml (markdown def md) `shouldBe` html
 
 checkSet :: MarkdownSettings -> Text -> Text -> Expectation

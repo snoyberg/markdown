@@ -8,10 +8,9 @@ import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Text.Markdown (def, MarkdownSettings(..))
 import Text.Markdown.Block
-import Data.Functor.Identity (runIdentity)
 
 checkWith :: MarkdownSettings -> Text -> [Block Text] -> Expectation
-checkWith ms md blocks = runIdentity (yield md $$ toBlocks ms =$ CL.consume) `shouldBe` blocks
+checkWith ms md blocks = runConduitPure (yield md .| toBlocks ms .| CL.consume) `shouldBe` blocks
 
 check :: Text -> [Block Text] -> Expectation
 check = checkWith def

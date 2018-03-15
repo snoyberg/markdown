@@ -1,3 +1,7 @@
+## 0.1.17
+
+* Support GHC 8.4.1
+
 ## 0.1.16
 
 * Add `setNoFollowExternal`

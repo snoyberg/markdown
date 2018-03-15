@@ -43,17 +43,17 @@ import Text.Blaze.Html (ToMarkup (..), Html)
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
-import Data.Monoid (Monoid (mappend, mempty, mconcat))
-import Data.Functor.Identity (runIdentity)
+import Data.Monoid (Monoid (mappend, mempty, mconcat), (<>))
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import qualified Data.Map as Map
 import Data.String (IsString)
+import Data.Semigroup (Semigroup)
 
 -- | A newtype wrapper providing a @ToHtml@ instance.
 newtype Markdown = Markdown TL.Text
-  deriving(Eq, Ord, Monoid, IsString, Show)
+  deriving(Eq, Ord, Monoid, Semigroup, IsString, Show)
 
 instance ToMarkup Markdown where
     toMarkup (Markdown t) = markdown def t
@@ -70,10 +70,10 @@ instance ToMarkup Markdown where
 markdown :: MarkdownSettings -> TL.Text -> Html
 markdown ms tl =
        sanitize
-     $ runIdentity
+     $ runConduitPure
      $ CL.sourceList blocksH
-    $= toHtmlB ms
-    $$ CL.fold mappend mempty
+    .| toHtmlB ms
+    .| CL.fold mappend mempty
   where
     sanitize
         | msXssProtect ms = preEscapedToMarkup . sanitizeBalance . TL.toStrict . renderHtml
@@ -82,10 +82,10 @@ markdown ms tl =
     blocksH = processBlocks blocks
 
     blocks :: [Block Text]
-    blocks = runIdentity
+    blocks = runConduitPure
            $ CL.sourceList (TL.toChunks tl)
-          $$ toBlocks ms
-          =$ CL.consume
+          .| toBlocks ms
+          .| CL.consume
 
     processBlocks :: [Block Text] -> [Block Html]
     processBlocks = map (fmap $ toHtmlI ms)
@@ -102,7 +102,7 @@ markdown ms tl =
 
 data MState = NoState | InList ListType
 
-toHtmlB :: Monad m => MarkdownSettings -> Conduit (Block Html) m Html
+toHtmlB :: Monad m => MarkdownSettings -> ConduitM (Block Html) Html m ()
 toHtmlB ms =
     loop NoState
   where
@@ -156,7 +156,7 @@ toHtmlB ms =
 
     go BlockReference{} = return ()
 
-    blocksToHtml bs = runIdentity $ mapM_ yield bs $$ toHtmlB ms =$ CL.fold mappend mempty
+    blocksToHtml bs = runConduitPure $ mapM_ yield bs .| toHtmlB ms .| CL.fold mappend mempty
 
 escape :: Text -> Html
 escape = preEscapedToMarkup
@@ -184,11 +184,9 @@ toHtmlI ms is0
     go (InlineImage url (Just title) content) = H.img H.! HA.src (H.toValue url) H.! HA.alt (H.toValue content) H.! HA.title (H.toValue title)
     go (InlineHtml t) = escape t
     go (InlineFootnoteRef x) = let ishown = TL.pack (show x)
-                                   (<>) = mappend
                                 in H.a H.! HA.href (H.toValue $ "#footnote-" <> ishown)
                                        H.! HA.id (H.toValue $ "ref-" <> ishown) $ H.toHtml $ "[" <> ishown <> "]"
     go (InlineFootnote x) = let ishown = TL.pack (show x)
-                                (<>) = mappend
                              in H.a H.! HA.href (H.toValue $ "#ref-" <> ishown)
                                     H.! HA.id (H.toValue $ "footnote-" <> ishown) $ H.toHtml $ "[" <> ishown <> "]"
 

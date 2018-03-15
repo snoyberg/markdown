@@ -16,32 +16,26 @@ import Control.Monad (msum)
 #if MIN_VERSION_conduit(1, 0, 0)
 import Data.Conduit
 #else
-import Data.Conduit hiding ((=$=))
+import Data.Conduit hiding ((.|))
 import Data.Conduit.Internal (pipeL)
 #endif
 import qualified Data.Conduit.Text as CT
 import qualified Data.Conduit.List as CL
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Functor.Identity (runIdentity)
 import Data.Char (isDigit)
 import Text.Markdown.Types
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-
-#if !MIN_VERSION_conduit(1, 0, 0)
-(=$=) :: Monad m => Pipe a a b x m y -> Pipe b b c y m z -> Pipe a a c x m z
-(=$=) = pipeL
-#endif
 
 toBlockLines :: Block Text -> Block [Text]
 toBlockLines = fmap $ map T.stripEnd
                     . concatMap (T.splitOn "  \r\n")
                     . T.splitOn "  \n"
 
-toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
+toBlocks :: Monad m => MarkdownSettings -> ConduitM Text (Block Text) m ()
 toBlocks ms =
-    mapOutput fixWS CT.lines =$= toBlocksLines ms
+    mapOutput fixWS CT.lines .| toBlocksLines ms
   where
     fixWS = T.pack . go 0 . T.unpack
 
@@ -53,10 +47,10 @@ toBlocks ms =
         j = 4 - (i `mod` 4)
     go i (c:cs) = c : go (i + 1) cs
 
-toBlocksLines :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
-toBlocksLines ms = awaitForever (start ms) =$= tightenLists
+toBlocksLines :: Monad m => MarkdownSettings -> ConduitM Text (Block Text) m ()
+toBlocksLines ms = awaitForever (start ms) .| tightenLists
 
-tightenLists :: Monad m => Conduit (Either Blank (Block Text)) m (Block Text)
+tightenLists :: Monad m => ConduitM (Either Blank (Block Text)) (Block Text) m ()
 tightenLists =
     go Nothing
   where
@@ -149,7 +143,7 @@ lineType ms t
         d <- T.stripPrefix "]:" c
         Just (name, T.strip d)
 
-start :: Monad m => MarkdownSettings -> Text -> Conduit Text m (Either Blank (Block Text))
+start :: Monad m => MarkdownSettings -> Text -> ConduitM Text (Either Blank (Block Text)) m ()
 start ms t =
     go $ lineType ms t
   where
@@ -161,23 +155,23 @@ start ms t =
                 let block =
                         case fh of
                             FHRaw fh' -> fh' $ T.intercalate "\n" ls
-                            FHParsed fh' -> fh' $ runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
+                            FHParsed fh' -> fh' $ runConduitPure $ mapM_ yield ls .| toBlocksLines ms .| CL.consume
                 mapM_ (yield . Right) block
             Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
     go (LineBlockQuote t') = do
-        ls <- takeQuotes =$= CL.consume
-        let blocks = runIdentity $ mapM_ yield (t' : ls) $$ toBlocksLines ms =$ CL.consume
+        ls <- takeQuotes .| CL.consume
+        let blocks = runConduitPure $ mapM_ yield (t' : ls) .| toBlocksLines ms .| CL.consume
         yield $ Right $ BlockQuote blocks
     go (LineHeading level t') = yield $ Right $ BlockHeading level t'
     go (LineCode t') = do
-        ls <- getIndented 4 =$= CL.consume
+        ls <- getIndented 4 .| CL.consume
         yield $ Right $ BlockCode Nothing $ T.intercalate "\n" $ t' : ls
     go LineRule = yield $ Right BlockRule
     go (LineHtml t') = do
         if t' `Set.member` msStandaloneHtml ms
             then yield $ Right $ BlockHtml t'
             else do
-                ls <- takeTill (T.null . T.strip) =$= CL.consume
+                ls <- takeTill (T.null . T.strip) .| CL.consume
                 yield $ Right $ BlockHtml $ T.intercalate "\n" $ t' : ls
     go (LineList ltype t') = do
         t2 <- CL.peek
@@ -203,8 +197,8 @@ start ms t =
             _ | Just t2' <- t2
               , Just t2'' <- T.stripPrefix "    " t2'
               , LineList _ltype' _t2''' <- lineType ms t2'' -> do
-                ls <- getIndented 4 =$= CL.consume
-                let blocks = runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
+                ls <- getIndented 4 .| CL.consume
+                let blocks = runConduitPure $ mapM_ yield ls .| toBlocksLines ms .| CL.consume
                 let addPlainText
                         | T.null $ T.strip t' = id
                         | otherwise = (BlockPlainText (T.strip t'):)
@@ -212,8 +206,8 @@ start ms t =
             _ -> do
                 let t'' = T.dropWhile (== ' ') t'
                 let leader = T.length t - T.length t''
-                ls <- getIndented leader =$= CL.consume
-                let blocks = runIdentity $ mapM_ yield (t'' : ls) $$ toBlocksLines ms =$ CL.consume
+                ls <- getIndented leader .| CL.consume
+                let blocks = runConduitPure $ mapM_ yield (t'' : ls) .| toBlocksLines ms .| CL.consume
                 yield $ Right $ BlockList ltype $ Right blocks
     go (LineReference x y) = yield $ Right $ BlockReference x y
     go (LineText t') = do
@@ -272,13 +266,16 @@ isHtmlStart t =
     isPI = ("?" `T.isPrefixOf`)
     isCommentCData = ("!" `T.isPrefixOf`)
 
-takeTill :: Monad m => (i -> Bool) -> Conduit i m i
+takeTill :: Monad m => (i -> Bool) -> ConduitM i i m ()
 takeTill f =
     loop
   where
     loop = await >>= maybe (return ()) (\x -> if f x then return () else yield x >> loop)
 
---takeTillConsume :: Monad m => (i -> Bool) -> Consumer i m (Maybe i, [i])
+takeTillConsume
+  :: Monad m
+  => (i -> Bool)
+  -> ConduitM i o m (Maybe i, [i])
 takeTillConsume f =
     loop id
   where
@@ -319,7 +316,7 @@ stripOrderedListSeparator =
 stripPrefixChoice :: [Text] -> Text -> Maybe Text
 stripPrefixChoice xs x = msum $ map (flip T.stripPrefix x) xs
 
-getIndented :: Monad m => Int -> Conduit Text m Text
+getIndented :: Monad m => Int -> ConduitM Text Text m ()
 getIndented leader =
     go []
   where
@@ -335,7 +332,7 @@ getIndented leader =
       where
         (x, y) = T.splitAt leader t
 
-takeQuotes :: Monad m => Conduit Text m Text
+takeQuotes :: Monad m => ConduitM Text Text m ()
 takeQuotes =
     await >>= maybe (return ()) go
   where
