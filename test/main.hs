@@ -13,6 +13,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.List (isInfixOf, isSuffixOf)
 import Data.Maybe (fromMaybe)
+import Data.CallStack
 
 import System.Directory (getDirectoryContents)
 import System.FilePath ((</>), replaceExtension)
