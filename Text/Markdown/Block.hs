@@ -3,7 +3,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_HADDOCK hide #-}
 module Text.Markdown.Block
     ( Block (..)
     , ListType (..)

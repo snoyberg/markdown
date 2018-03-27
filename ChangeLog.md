@@ -1,3 +1,7 @@
+## 0.1.17.1
+
+* Remove `OPTIONS_HADDOCK hide`
+
 ## 0.1.17
 
 * Support GHC 8.4.1

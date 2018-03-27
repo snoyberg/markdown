@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_HADDOCK hide #-}
 module Text.Markdown.Inline
     ( Inline (..)
     , inlineParser
