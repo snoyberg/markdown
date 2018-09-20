@@ -1,3 +1,9 @@
+# Changelog for markdown
+
+## 0.1.17.2
+
+* Make test suite slightly more resilient to escaping rules
+
 ## 0.1.17.1
 
 * Remove `OPTIONS_HADDOCK hide`
