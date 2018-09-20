@@ -13,6 +13,8 @@ Extra-source-files:  test/examples/*.html
                    , test/examples/*.md
                    , test/Tests/*.html
                    , test/Tests/*.text
+                   , ChangeLog.md
+                   , README.md
 Cabal-version:       >=1.8
 
 Library
