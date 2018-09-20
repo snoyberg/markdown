@@ -1,5 +1,9 @@
 # Changelog for markdown
 
+## 0.1.17.4
+
+* One more fix for test suite, now works on Windows as well
+
 ## 0.1.17.3
 
 * Fix the previous test fix
