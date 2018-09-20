@@ -1,5 +1,9 @@
 # Changelog for markdown
 
+## 0.1.17.3
+
+* Fix the previous test fix
+
 ## 0.1.17.2
 
 * Make test suite slightly more resilient to escaping rules
