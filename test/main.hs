@@ -4,7 +4,9 @@ import Text.Blaze.Html5 (figure)
 import Test.Hspec
 import Text.Markdown
 import Data.Text.Lazy (Text, unpack, snoc, fromStrict)
+import qualified Data.ByteString as B
 import qualified Data.Text as T
+import Data.Text.Encoding (decodeUtf8)
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import Text.Blaze.Html.Renderer.Text (renderHtml)
@@ -272,8 +274,8 @@ getExamples = do
     dir = "test/examples"
     go basename = do
         let fp = dir </> basename
-        input <- TIO.readFile fp
-        output <- TIO.readFile $ replaceExtension fp "html"
+        input <- decodeUtf8 <$> B.readFile fp
+        output <- decodeUtf8 <$> B.readFile (replaceExtension fp "html")
         let (checker, stripper)
                 | "-spec" `isInfixOf` fp = (check', dropFinalLF)
                 | otherwise = (check, T.strip)
@@ -290,6 +292,6 @@ getGruber = do
     dir = "test/Tests"
     go basename = do
         let fp = dir </> basename
-        input <- TIO.readFile fp
-        output <- TIO.readFile $ replaceExtension fp "html"
+        input <- decodeUtf8 <$> B.readFile fp
+        output <- decodeUtf8 <$> B.readFile (replaceExtension fp "html")
         return $ it basename $ checkNoNL (fromStrict $ T.strip output) (fromStrict input)
