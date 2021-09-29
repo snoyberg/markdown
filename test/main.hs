@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 import Text.Blaze.Html (toHtml)
 import Text.Blaze.Html5 (figure)
 import Test.Hspec
@@ -227,7 +228,12 @@ main = do
         it "inline" $ check "<p>foo<br>bar</p>" "foo<br>bar"
         it "inline xss" $ check "<p>foo<br>bar</p>" "foo<br onclick='evil'>bar"
         it "block" $ check "<div>hello world</div>" "<div>hello world</div>"
-        it "block xss" $ check "alert(&quot;evil&quot;)" "<script>alert(\"evil\")</script>"
+        it "block xss" $
+#if MIN_VERSION_xss_sanitize(0, 3, 7)
+          check "" "<script>alert(\"evil\")</script>"
+#else
+          check "alert(&quot;evil&quot;)" "<script>alert(\"evil\")</script>"
+#endif
         it "should be escaped" $ check "<p>1 &lt; 2</p>" "1 < 2"
         it "standalone" $ checkSet
             def { msStandaloneHtml = Set.fromList ["<hidden>", "</hidden>"], msXssProtect = False }

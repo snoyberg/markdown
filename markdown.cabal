@@ -58,6 +58,7 @@ test-suite test
                  , containers
                  , filepath
                  , directory
+                 , xss-sanitize
 
 source-repository head
   type:     git
